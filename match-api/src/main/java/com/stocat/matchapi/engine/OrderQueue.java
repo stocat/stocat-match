@@ -66,18 +66,12 @@ public class OrderQueue {
         return sellOrders.poll();
     }
 
-    /**
-     * 대기 중인 매수 주문 수
-     */
-    public int getBuyOrderCount() {
-        return buyOrders.size();
+    public boolean isBuyOrdersEmpty() {
+        return buyOrders.isEmpty();
     }
 
-    /**
-     * 대기 중인 매도 주문 수
-     */
-    public int getSellOrderCount() {
-        return sellOrders.size();
+    public boolean isSellOrdersEmpty() {
+        return sellOrders.isEmpty();
     }
 
     public String getSymbol() {
