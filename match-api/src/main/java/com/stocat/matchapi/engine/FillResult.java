@@ -1,0 +1,34 @@
+package com.stocat.matchapi.engine;
+
+import com.stocat.matchapi.domain.fill.Fill;
+import com.stocat.matchapi.domain.order.Order;
+
+import java.math.BigDecimal;
+import java.util.List;
+
+/**
+ * 체결 결과
+ * - 체결된 Fill 리스트와 총 체결 수량 포함
+ * - 부분 체결 시 남은 수량으로 재생성된 주문 포함
+ */
+public record FillResult(
+        List<Fill> fills,
+        BigDecimal totalFilledQuantity,
+        Order remainingOrder  // null이면 완전 체결 또는 체결 실패
+) {
+    public static FillResult empty() {
+        return new FillResult(List.of(), BigDecimal.ZERO, null);
+    }
+
+    public static FillResult of(List<Fill> fills, BigDecimal totalFilledQuantity) {
+        return new FillResult(fills, totalFilledQuantity, null);
+    }
+
+    public boolean isEmpty() {
+        return fills.isEmpty();
+    }
+
+    public boolean hasRemainingOrder() {
+        return remainingOrder != null;
+    }
+}

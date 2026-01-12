@@ -7,7 +7,6 @@ import java.time.LocalDateTime;
 
 public record Order(
         Long id,
-        Long userId,
         String symbol,
         TradeSide side,
         OrderType type,
@@ -16,4 +15,16 @@ public record Order(
         OrderTif tif,
         LocalDateTime createdAt
 ) {
+    public Order withQuantity(BigDecimal quantity) {
+        return new Order(
+                this.id,
+                this.symbol,
+                this.side,
+                this.type,
+                quantity,
+                this.price,
+                this.tif,
+                this.createdAt
+        );
+    }
 }

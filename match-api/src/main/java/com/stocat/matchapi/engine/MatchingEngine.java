@@ -21,18 +21,16 @@ public class MatchingEngine {
      * 매수 주문 체결 시도
      * - 여러 호가 레벨에 걸쳐 체결 가능
      * - 각 가격 레벨마다 별도의 Fill 생성
+     * - 부분 체결 시 남은 수량으로 주문 재생성
      */
-    public List<Fill> matchBuyOrder(Order order, Orderbook orderbook) {
-        if (order.createdAt().isAfter(orderbook.timestamp())) {
-            return List.of();
-        }
-
+    public FillResult matchBuyOrder(Order order, Orderbook orderbook) {
         if (orderbook.asks() == null || orderbook.asks().isEmpty()) {
-            return List.of();
+            return FillResult.empty();
         }
 
         List<Fill> fills = new ArrayList<>();
         BigDecimal remainingQuantity = order.quantity();
+        BigDecimal totalFilledQuantity = BigDecimal.ZERO;
 
         for (PriceLevel ask : orderbook.asks()) {
             if (remainingQuantity.compareTo(BigDecimal.ZERO) <= 0) {
@@ -49,29 +47,36 @@ public class MatchingEngine {
             fills.add(fill);
 
             remainingQuantity = remainingQuantity.subtract(fillQuantity);
-            log.debug("매수 부분 체결: price={}, quantity={}, remaining={}",
-                    ask.price(), fillQuantity, remainingQuantity);
+            totalFilledQuantity = totalFilledQuantity.add(fillQuantity);
         }
 
-        return fills;
+        // 부분 체결인 경우 남은 수량으로 주문 재생성
+        Order remainingOrder = null;
+        if (remainingQuantity.compareTo(BigDecimal.ZERO) > 0) {
+            remainingOrder = order.withQuantity(remainingQuantity);
+        }
+
+        return new FillResult(fills, totalFilledQuantity, remainingOrder);
     }
 
     /**
      * 매도 주문 체결 시도
      * - 여러 호가 레벨에 걸쳐 체결 가능
      * - 각 가격 레벨마다 별도의 Fill 생성
+     * - 부분 체결 시 남은 수량으로 주문 재생성
      */
-    public List<Fill> matchSellOrder(Order order, Orderbook orderbook) {
+    public FillResult matchSellOrder(Order order, Orderbook orderbook) {
         if (order.createdAt().isAfter(orderbook.timestamp())) {
-            return List.of();
+            return FillResult.empty();
         }
 
         if (orderbook.bids() == null || orderbook.bids().isEmpty()) {
-            return List.of();
+            return FillResult.empty();
         }
 
         List<Fill> fills = new ArrayList<>();
         BigDecimal remainingQuantity = order.quantity();
+        BigDecimal totalFilledQuantity = BigDecimal.ZERO;
 
         for (PriceLevel bid : orderbook.bids()) {
             if (remainingQuantity.compareTo(BigDecimal.ZERO) <= 0) {
@@ -88,10 +93,17 @@ public class MatchingEngine {
             fills.add(fill);
 
             remainingQuantity = remainingQuantity.subtract(fillQuantity);
+            totalFilledQuantity = totalFilledQuantity.add(fillQuantity);
         }
 
-        return fills;
+        Order remainingOrder = null;
+        if (remainingQuantity.compareTo(BigDecimal.ZERO) > 0) {
+            remainingOrder = order.withQuantity(remainingQuantity);
+        }
+
+        return new FillResult(fills, totalFilledQuantity, remainingOrder);
     }
+
 
     /**
      * 매수 주문이 특정 호가에서 체결 가능한지 확인
