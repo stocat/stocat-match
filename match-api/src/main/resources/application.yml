@@ -1,0 +1,18 @@
+spring:
+  application:
+    name: match-api
+
+  # Redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+# KIS API 설정 (실전투자)
+kis:
+  websocket:
+    url: ws://ops.koreainvestment.com:21000
+    app-key: key
+    app-secret: secret
+  auth:
+    base-url: https://openapi.koreainvestment.com:9443

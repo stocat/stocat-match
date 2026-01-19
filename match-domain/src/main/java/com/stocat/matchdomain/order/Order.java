@@ -1,6 +1,6 @@
-package com.stocat.matchapi.domain.order;
+package com.stocat.matchdomain.order;
 
-import com.stocat.matchapi.domain.TradeSide;
+import com.stocat.matchdomain.TradeSide;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

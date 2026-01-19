@@ -1,7 +1,7 @@
 package com.stocat.matchapi.engine;
 
-import com.stocat.matchapi.domain.fill.Fill;
-import com.stocat.matchapi.domain.order.Order;
+import com.stocat.matchdomain.fill.Fill;
+import com.stocat.matchdomain.order.Order;
 
 import java.math.BigDecimal;
 import java.util.List;

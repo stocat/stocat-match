@@ -1,4 +1,4 @@
-package com.stocat.matchapi.domain;
+package com.stocat.matchdomain;
 
 import lombok.Getter;
 

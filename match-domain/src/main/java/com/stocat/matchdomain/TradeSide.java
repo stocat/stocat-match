@@ -1,4 +1,4 @@
-package com.stocat.matchapi.domain;
+package com.stocat.matchdomain;
 
 /**
  * 매매 구분
