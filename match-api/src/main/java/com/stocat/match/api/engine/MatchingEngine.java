@@ -52,6 +52,9 @@ public class MatchingEngine {
 
         // 부분 체결인 경우 남은 수량으로 주문 재생성
         Order remainingOrder = null;
+        if (totalFilledQuantity.equals(BigDecimal.ZERO)) {
+            remainingOrder = order;
+        }
         if (remainingQuantity.compareTo(BigDecimal.ZERO) > 0) {
             remainingOrder = order.withQuantity(remainingQuantity);
         }
@@ -66,10 +69,6 @@ public class MatchingEngine {
      * - 부분 체결 시 남은 수량으로 주문 재생성
      */
     public FillResult matchSellOrder(Order order, Orderbook orderbook) {
-        if (order.createdAt().isAfter(orderbook.timestamp())) {
-            return FillResult.empty();
-        }
-
         if (orderbook.bids() == null || orderbook.bids().isEmpty()) {
             return FillResult.empty();
         }

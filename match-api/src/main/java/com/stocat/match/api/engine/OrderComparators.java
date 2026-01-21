@@ -9,7 +9,7 @@ import java.util.Comparator;
 public class OrderComparators {
 
     /**
-     * 매수 주문 정렬 우선순위: 시장가 우선 -> 지정가(LIMIT)는 가격 높은 순 -> 시간 우선
+     * 매수 주문 정렬 우선순위: 시장가 우선 -> 지정가(LIMIT)는 가격 높은 순 -> seq 순
      */
     public static Comparator<Order> buyOrderComparator() {
         return Comparator.<Order>comparingInt(order -> order.type() == OrderType.MARKET ? 0 : 1)
@@ -17,17 +17,17 @@ public class OrderComparators {
                         order -> getLimitPrice(order, BigDecimal.ZERO),
                         Comparator.reverseOrder()
                 )
-                .thenComparing(Order::createdAt);
+                .thenComparing(Order::seq);
     }
 
 
     /**
-     * 매도 주문 정렬 우선순위: 시장가 우선 -> 지정가(LIMIT)는 가격 낮은 순 -> 시간 우선
+     * 매도 주문 정렬 우선순위: 시장가 우선 -> 지정가(LIMIT)는 가격 낮은 순 -> seq 순
      */
     public static Comparator<Order> sellOrderComparator() {
         return Comparator.<Order>comparingInt(order -> order.type() == OrderType.MARKET ? 0 : 1)
                 .thenComparing(order -> getLimitPrice(order, BigDecimal.valueOf(Long.MAX_VALUE)))
-                .thenComparing(Order::createdAt);
+                .thenComparing(Order::seq);
     }
 
     private static BigDecimal getLimitPrice(Order order, BigDecimal defaultValue) {

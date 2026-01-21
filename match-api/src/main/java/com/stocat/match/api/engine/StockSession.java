@@ -7,7 +7,7 @@ public record StockSession(
         MatchingWorker worker,
         Disposable subscription
 ) {
-    void dispose() {
+    void close() {
         if (subscription != null && !subscription.isDisposed()) {
             subscription.dispose();
         }

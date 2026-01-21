@@ -13,7 +13,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -38,16 +37,37 @@ public class StockSessionManager {
      * - Redis Stream 구독 시작
      */
     public void registerSymbol(String symbol) {
-        sessions.computeIfAbsent(symbol, key -> {
-            Disposable subscription = consumeOrderbook(key)
-                    .subscribe(
-                            orderbook -> log.debug("호가 처리 완료: symbol={}", key),
-                            error -> log.error("호가 처리 오류: symbol={}, error={}", key, error.getMessage())
-                    );
-            MatchingWorker worker = workerFactory.create(key);
+        if (sessions.containsKey(symbol)) {
+            return;
+        }
 
-            return new StockSession(key, worker, subscription);
-        });
+        Disposable subscription = null;
+        MatchingWorker worker = null;
+        try {
+            subscription = consumeOrderbook(symbol)
+                    .subscribe(
+                            orderbook -> log.debug("호가 처리 완료: symbol={}", symbol),
+                            error -> log.error("호가 처리 오류: symbol={}, error={}", symbol, error.getMessage())
+                    );
+
+            worker = workerFactory.create(symbol);
+
+            StockSession session = new StockSession(symbol, worker, subscription);
+
+            StockSession previous = sessions.putIfAbsent(symbol, session);
+
+            if (previous != null) {
+                session.close();
+            }
+        } catch (Exception e) {
+            if (subscription != null && !subscription.isDisposed()) {
+                subscription.dispose();
+            }
+            if (worker != null) {
+                worker.shutdown();
+            }
+            throw e;
+        }
     }
 
     /**
@@ -59,7 +79,7 @@ public class StockSessionManager {
             return;
         }
 
-        session.dispose();
+        session.close();
     }
 
     // === 라우팅 ===
@@ -117,7 +137,7 @@ public class StockSessionManager {
      */
     @PreDestroy
     public void shutdown() {
-        sessions.values().forEach(StockSession::dispose);
+        sessions.values().forEach(StockSession::close);
         sessions.clear();
     }
 }

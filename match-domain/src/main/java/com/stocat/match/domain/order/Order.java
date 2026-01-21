@@ -3,7 +3,6 @@ package com.stocat.match.domain.order;
 import com.stocat.match.domain.TradeSide;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 public record Order(
         Long id,
@@ -13,7 +12,7 @@ public record Order(
         BigDecimal quantity,
         BigDecimal price,
         OrderTif tif,
-        LocalDateTime createdAt
+        String seq
 ) {
     public Order withQuantity(BigDecimal quantity) {
         return new Order(
@@ -24,7 +23,7 @@ public record Order(
                 quantity,
                 this.price,
                 this.tif,
-                this.createdAt
+                this.seq
         );
     }
 }
