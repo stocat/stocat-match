@@ -1,6 +1,5 @@
-package com.stocat.match.api.engine;
+package com.stocat.match.domain.fill;
 
-import com.stocat.match.domain.fill.Fill;
 import com.stocat.match.domain.order.Order;
 
 import java.math.BigDecimal;
@@ -14,14 +13,12 @@ import java.util.List;
 public record FillResult(
         List<Fill> fills,
         BigDecimal totalFilledQuantity,
-        Order remainingOrder  // null이면 완전 체결 또는 체결 실패
+        Order remainingOrder  // null이면 완전 체결
 ) {
-    public static FillResult empty() {
-        return new FillResult(List.of(), BigDecimal.ZERO, null);
-    }
+    private static final FillResult EMPTY = new FillResult(List.of(), BigDecimal.ZERO, null);
 
-    public static FillResult of(List<Fill> fills, BigDecimal totalFilledQuantity) {
-        return new FillResult(fills, totalFilledQuantity, null);
+    public static FillResult empty() {
+        return EMPTY;
     }
 
     public boolean isEmpty() {

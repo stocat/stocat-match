@@ -2,6 +2,7 @@ package com.stocat.match.api.engine;
 
 import com.stocat.match.domain.TradeSide;
 import com.stocat.match.domain.fill.Fill;
+import com.stocat.match.domain.fill.FillResult;
 import com.stocat.match.domain.order.Order;
 import com.stocat.match.domain.order.OrderTif;
 import com.stocat.match.domain.order.OrderType;
