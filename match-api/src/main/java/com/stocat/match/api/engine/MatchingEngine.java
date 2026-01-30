@@ -4,6 +4,7 @@ import com.stocat.match.domain.fill.Fill;
 import com.stocat.match.domain.fill.FillResult;
 import com.stocat.match.domain.order.Order;
 import com.stocat.match.domain.order.OrderType;
+import com.stocat.match.domain.TradeSide;
 import com.stocat.match.domain.orderbook.Orderbook;
 import com.stocat.match.domain.orderbook.PriceLevel;
 import lombok.extern.slf4j.Slf4j;
@@ -19,58 +20,21 @@ import java.util.List;
 public class MatchingEngine {
 
     /**
-     * 매수 주문 체결 시도
+     * 주문 체결 시도 (매수/매도 통합)
      * - 여러 호가 레벨에 걸쳐 체결 가능
      * - 각 가격 레벨마다 별도의 Fill 생성
      * - 부분 체결 시 남은 수량으로 주문 재생성
      */
-    public FillResult matchBuyOrder(Order order, Orderbook orderbook) {
-        if (orderbook.asks() == null || orderbook.asks().isEmpty()) {
-            return FillResult.empty();
-        }
+    public FillResult match(Order order, Orderbook orderbook) {
+        List<PriceLevel> priceLevels = order.side() == TradeSide.BUY
+                ? orderbook.asks()
+                : orderbook.bids();
 
-        List<Fill> fills = new ArrayList<>();
-        BigDecimal remainingQuantity = order.quantity();
-        BigDecimal totalFilledQuantity = BigDecimal.ZERO;
-
-        for (PriceLevel ask : orderbook.asks()) {
-            if (remainingQuantity.compareTo(BigDecimal.ZERO) <= 0) {
-                break;
-            }
-
-            if (!canFillBuyOrderAtPrice(order, ask)) {
-                break;
-            }
-
-            BigDecimal fillQuantity = remainingQuantity.min(ask.quantity());
-
-            Fill fill = createFill(order, ask.price(), fillQuantity);
-            fills.add(fill);
-
-            remainingQuantity = remainingQuantity.subtract(fillQuantity);
-            totalFilledQuantity = totalFilledQuantity.add(fillQuantity);
-        }
-
-        // 부분 체결인 경우 남은 수량으로 주문 재생성
-        Order remainingOrder = null;
-        if (totalFilledQuantity.equals(BigDecimal.ZERO)) {
-            remainingOrder = order;
-        }
-        if (remainingQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            remainingOrder = order.withQuantity(remainingQuantity);
-        }
-
-        return new FillResult(fills, totalFilledQuantity, remainingOrder);
+        return matchOrder(order, priceLevels);
     }
 
-    /**
-     * 매도 주문 체결 시도
-     * - 여러 호가 레벨에 걸쳐 체결 가능
-     * - 각 가격 레벨마다 별도의 Fill 생성
-     * - 부분 체결 시 남은 수량으로 주문 재생성
-     */
-    public FillResult matchSellOrder(Order order, Orderbook orderbook) {
-        if (orderbook.bids() == null || orderbook.bids().isEmpty()) {
+    private FillResult matchOrder(Order order, List<PriceLevel> priceLevels) {
+        if (priceLevels == null || priceLevels.isEmpty()) {
             return FillResult.empty();
         }
 
@@ -78,18 +42,17 @@ public class MatchingEngine {
         BigDecimal remainingQuantity = order.quantity();
         BigDecimal totalFilledQuantity = BigDecimal.ZERO;
 
-        for (PriceLevel bid : orderbook.bids()) {
+        for (PriceLevel level : priceLevels) {
             if (remainingQuantity.compareTo(BigDecimal.ZERO) <= 0) {
                 break;
             }
 
-            if (!canFillSellOrderAtPrice(order, bid)) {
+            if (!canFillAtPrice(order, level)) {
                 break;
             }
 
-            BigDecimal fillQuantity = remainingQuantity.min(bid.quantity());
-
-            Fill fill = createFill(order, bid.price(), fillQuantity);
+            BigDecimal fillQuantity = remainingQuantity.min(level.quantity());
+            Fill fill = createFill(order, level.price(), fillQuantity);
             fills.add(fill);
 
             remainingQuantity = remainingQuantity.subtract(fillQuantity);
@@ -104,32 +67,24 @@ public class MatchingEngine {
         return new FillResult(fills, totalFilledQuantity, remainingOrder);
     }
 
-
     /**
-     * 매수 주문이 특정 호가에서 체결 가능한지 확인
+     * 주문이 특정 호가에서 체결 가능한지 확인
      */
-    private boolean canFillBuyOrderAtPrice(Order order, PriceLevel ask) {
+    private boolean canFillAtPrice(Order order, PriceLevel level) {
         if (order.type() == OrderType.MARKET) {
             return true;
         }
 
         if (order.type() == OrderType.LIMIT) {
-            return order.price() != null && order.price().compareTo(ask.price()) >= 0;
-        }
+            BigDecimal orderPrice = order.price();
+            BigDecimal levelPrice = level.price();
 
-        return false;
-    }
-
-    /**
-     * 매도 주문이 특정 호가에서 체결 가능한지 확인
-     */
-    private boolean canFillSellOrderAtPrice(Order order, PriceLevel bid) {
-        if (order.type() == OrderType.MARKET) {
-            return true;
-        }
-
-        if (order.type() == OrderType.LIMIT) {
-            return order.price() != null && order.price().compareTo(bid.price()) <= 0;
+            if (order.side() == TradeSide.BUY) {
+                return orderPrice.compareTo(levelPrice) >= 0;
+            }
+            if (order.side() == TradeSide.SELL) {
+                return orderPrice.compareTo(levelPrice) <= 0;
+            }
         }
 
         return false;

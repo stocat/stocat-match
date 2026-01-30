@@ -14,6 +14,12 @@ public record Order(
         OrderTif tif,
         String seq
 ) {
+    public Order {
+        if (type == OrderType.LIMIT && price == null) {
+            throw new IllegalArgumentException("지정가 주문은 가격이 필수입니다");
+        }
+    }
+
     public Order withQuantity(BigDecimal quantity) {
         return new Order(
                 this.id,
