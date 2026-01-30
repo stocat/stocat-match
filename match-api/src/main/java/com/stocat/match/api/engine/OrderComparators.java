@@ -12,28 +12,24 @@ public class OrderComparators {
      * 매수 주문 정렬 우선순위: 시장가 우선 -> 지정가(LIMIT)는 가격 높은 순 -> seq 순
      */
     public static Comparator<Order> buyOrderComparator() {
-        return Comparator.<Order>comparingInt(order -> order.type() == OrderType.MARKET ? 0 : 1)
-                .thenComparing(
-                        order -> getLimitPrice(order, BigDecimal.ZERO),
-                        Comparator.reverseOrder()
-                )
-                .thenComparing(Order::seq);
+        return orderComparator(Comparator.reverseOrder());
     }
-
 
     /**
      * 매도 주문 정렬 우선순위: 시장가 우선 -> 지정가(LIMIT)는 가격 낮은 순 -> seq 순
      */
     public static Comparator<Order> sellOrderComparator() {
-        return Comparator.<Order>comparingInt(order -> order.type() == OrderType.MARKET ? 0 : 1)
-                .thenComparing(order -> getLimitPrice(order, BigDecimal.valueOf(Long.MAX_VALUE)))
-                .thenComparing(Order::seq);
+        return orderComparator(Comparator.naturalOrder());
     }
 
-    private static BigDecimal getLimitPrice(Order order, BigDecimal defaultValue) {
-        if (order.type() == OrderType.LIMIT && order.price() != null) {
-            return order.price();
-        }
-        return defaultValue;
+    private static Comparator<Order> orderComparator(Comparator<BigDecimal> priceComparator) {
+        return Comparator.<Order>comparingInt(order -> order.type() == OrderType.MARKET ? 0 : 1)
+                .thenComparing((o1, o2) -> {
+                    if (o1.type() == OrderType.LIMIT && o2.type() == OrderType.LIMIT) {
+                        return priceComparator.compare(o1.price(), o2.price());
+                    }
+                    return 0;
+                })
+                .thenComparing(Order::seq);
     }
 }
