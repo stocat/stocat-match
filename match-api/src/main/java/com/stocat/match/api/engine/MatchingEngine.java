@@ -24,6 +24,10 @@ public class MatchingEngine {
      * - 여러 호가 레벨에 걸쳐 체결 가능
      * - 각 가격 레벨마다 별도의 Fill 생성
      * - 부분 체결 시 남은 수량으로 주문 재생성
+     *
+     * @param order 체결할 주문
+     * @param orderbook 현재 호가 정보
+     * @return 체결 결과 (체결 내역, 총 체결 수량, 미체결 주문)
      */
     public FillResult match(Order order, Orderbook orderbook) {
         List<PriceLevel> priceLevels = order.side() == TradeSide.BUY ? orderbook.asks() : orderbook.bids();
