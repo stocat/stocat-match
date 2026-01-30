@@ -26,16 +26,14 @@ public class MatchingEngine {
      * - 부분 체결 시 남은 수량으로 주문 재생성
      */
     public FillResult match(Order order, Orderbook orderbook) {
-        List<PriceLevel> priceLevels = order.side() == TradeSide.BUY
-                ? orderbook.asks()
-                : orderbook.bids();
+        List<PriceLevel> priceLevels = order.side() == TradeSide.BUY ? orderbook.asks() : orderbook.bids();
 
         return matchOrder(order, priceLevels);
     }
 
     private FillResult matchOrder(Order order, List<PriceLevel> priceLevels) {
         if (priceLevels == null || priceLevels.isEmpty()) {
-            return FillResult.empty();
+            return new FillResult(List.of(), BigDecimal.ZERO, order);
         }
 
         List<Fill> fills = new ArrayList<>();

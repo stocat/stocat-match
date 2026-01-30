@@ -75,6 +75,27 @@ class MatchingEngineTest {
     class MatchLimitBuyOrderTest {
 
         @Test
+        void 매도호가가_비어있으면_체결없이_원본주문이_반환된다() {
+            // given
+            BigDecimal orderPrice = BigDecimal.valueOf(1000);
+            BigDecimal quantity = BigDecimal.valueOf(10);
+
+            Order order = createLimitBuyOrder(TEST_SYMBOL, quantity, orderPrice);
+
+            Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), List.of());
+
+            // when
+            FillResult fillResult = matchingEngine.match(order, orderbook);
+
+            // then
+            Assertions.assertThat(fillResult).satisfies(result -> {
+                Assertions.assertThat(result.fills()).isEmpty();
+                Assertions.assertThat(result.totalFilledQuantity()).isZero();
+                Assertions.assertThat(result.remainingOrder()).isEqualTo(order);
+            });
+        }
+
+        @Test
         void 주문가격이_매도호가보다_같거나_높으면_매도호가로_체결된다() {
             // given
             BigDecimal orderPrice = BigDecimal.valueOf(1500);
@@ -256,6 +277,27 @@ class MatchingEngineTest {
     @Nested
     @DisplayName("지정가_매도주문_체결_요청_시")
     class MatchSellOrderTest {
+
+        @Test
+        void 매수호가가_비어있으면_체결없이_원본주문이_반환된다() {
+            // given
+            BigDecimal orderPrice = BigDecimal.valueOf(1000);
+            BigDecimal quantity = BigDecimal.valueOf(10);
+
+            Order order = createLimitSellOrder(TEST_SYMBOL, quantity, orderPrice);
+
+            Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), List.of());
+
+            // when
+            FillResult fillResult = matchingEngine.match(order, orderbook);
+
+            // then
+            Assertions.assertThat(fillResult).satisfies(result -> {
+                Assertions.assertThat(result.fills()).isEmpty();
+                Assertions.assertThat(result.totalFilledQuantity()).isZero();
+                Assertions.assertThat(result.remainingOrder()).isEqualTo(order);
+            });
+        }
 
         @Test
         void 주문가격이_매수호가보다_같거나_낮으면_매수호가로_체결된다() {

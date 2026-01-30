@@ -15,12 +15,6 @@ public record FillResult(
         BigDecimal totalFilledQuantity,
         Order remainingOrder  // null이면 완전 체결
 ) {
-    private static final FillResult EMPTY = new FillResult(List.of(), BigDecimal.ZERO, null);
-
-    public static FillResult empty() {
-        return EMPTY;
-    }
-
     public boolean isEmpty() {
         return fills.isEmpty();
     }
