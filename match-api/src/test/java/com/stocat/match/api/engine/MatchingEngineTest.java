@@ -75,6 +75,27 @@ class MatchingEngineTest {
     class MatchLimitBuyOrderTest {
 
         @Test
+        void 매도호가가_비어있으면_체결없이_원본주문이_반환된다() {
+            // given
+            BigDecimal orderPrice = BigDecimal.valueOf(1000);
+            BigDecimal quantity = BigDecimal.valueOf(10);
+
+            Order order = createLimitBuyOrder(TEST_SYMBOL, quantity, orderPrice);
+
+            Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), List.of());
+
+            // when
+            FillResult fillResult = matchingEngine.match(order, orderbook);
+
+            // then
+            Assertions.assertThat(fillResult).satisfies(result -> {
+                Assertions.assertThat(result.fills()).isEmpty();
+                Assertions.assertThat(result.totalFilledQuantity()).isZero();
+                Assertions.assertThat(result.remainingOrder()).isEqualTo(order);
+            });
+        }
+
+        @Test
         void 주문가격이_매도호가보다_같거나_높으면_매도호가로_체결된다() {
             // given
             BigDecimal orderPrice = BigDecimal.valueOf(1500);
@@ -87,7 +108,7 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.matchBuyOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -111,7 +132,7 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.matchBuyOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -133,7 +154,7 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.matchBuyOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -158,7 +179,7 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.matchBuyOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -188,7 +209,7 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.matchBuyOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -232,7 +253,7 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.matchBuyOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -258,6 +279,27 @@ class MatchingEngineTest {
     class MatchSellOrderTest {
 
         @Test
+        void 매수호가가_비어있으면_체결없이_원본주문이_반환된다() {
+            // given
+            BigDecimal orderPrice = BigDecimal.valueOf(1000);
+            BigDecimal quantity = BigDecimal.valueOf(10);
+
+            Order order = createLimitSellOrder(TEST_SYMBOL, quantity, orderPrice);
+
+            Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), List.of());
+
+            // when
+            FillResult fillResult = matchingEngine.match(order, orderbook);
+
+            // then
+            Assertions.assertThat(fillResult).satisfies(result -> {
+                Assertions.assertThat(result.fills()).isEmpty();
+                Assertions.assertThat(result.totalFilledQuantity()).isZero();
+                Assertions.assertThat(result.remainingOrder()).isEqualTo(order);
+            });
+        }
+
+        @Test
         void 주문가격이_매수호가보다_같거나_낮으면_매수호가로_체결된다() {
             // given
             BigDecimal orderPrice = BigDecimal.valueOf(1000);
@@ -270,7 +312,7 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.matchSellOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -287,14 +329,14 @@ class MatchingEngineTest {
             BigDecimal orderPrice = BigDecimal.valueOf(5000);
             BigDecimal quantity = BigDecimal.valueOf(1);
 
-            Order order = createLimitBuyOrder(TEST_SYMBOL, quantity, orderPrice);
+            Order order = createLimitSellOrder(TEST_SYMBOL, quantity, orderPrice);
 
             BigDecimal bidPrice = BigDecimal.valueOf(1000);
             List<PriceLevel> bids = List.of(new PriceLevel(bidPrice, quantity));
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.matchSellOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -310,13 +352,13 @@ class MatchingEngineTest {
             BigDecimal price = BigDecimal.valueOf(1000);
             BigDecimal quantity = BigDecimal.valueOf(100);
 
-            Order order = createLimitBuyOrder(TEST_SYMBOL, quantity, price);
+            Order order = createLimitSellOrder(TEST_SYMBOL, quantity, price);
 
             List<PriceLevel> bids = List.of(new PriceLevel(price, quantity));
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.matchSellOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -334,14 +376,14 @@ class MatchingEngineTest {
             BigDecimal price = BigDecimal.valueOf(1000);
             BigDecimal orderQuantity = BigDecimal.valueOf(100);
 
-            Order order = createLimitBuyOrder(TEST_SYMBOL, orderQuantity, price);
+            Order order = createLimitSellOrder(TEST_SYMBOL, orderQuantity, price);
 
             BigDecimal availableQuantity = BigDecimal.valueOf(50);
             List<PriceLevel> bids = List.of(new PriceLevel(price, availableQuantity));
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.matchSellOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -358,7 +400,7 @@ class MatchingEngineTest {
             BigDecimal orderPrice = BigDecimal.valueOf(1000);
             BigDecimal orderQuantity = BigDecimal.valueOf(100);
 
-            Order order = createLimitBuyOrder(TEST_SYMBOL, orderQuantity, orderPrice);
+            Order order = createLimitSellOrder(TEST_SYMBOL, orderQuantity, orderPrice);
 
             BigDecimal bidPrice1 = BigDecimal.valueOf(3000);
             BigDecimal bidPrice2 = BigDecimal.valueOf(2000);
@@ -371,7 +413,7 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.matchSellOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
@@ -415,7 +457,7 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.matchBuyOrder(order, orderbook);
+            FillResult fillResult = matchingEngine.match(order, orderbook);
 
             // then
             Assertions.assertThat(fillResult).satisfies(result -> {
