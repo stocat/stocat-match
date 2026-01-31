@@ -1,9 +1,10 @@
 package com.stocat.match.api.engine;
 
 import com.stocat.match.domain.fill.Fill;
+import com.stocat.match.domain.fill.FillResult;
 import com.stocat.match.domain.order.Order;
 import com.stocat.match.domain.orderbook.Orderbook;
-import com.stocat.match.domain.fill.FillResult;
+import com.stocat.match.domain.TradeSide;
 import com.stocat.match.api.engine.event.MatchingEvent;
 import com.stocat.match.api.engine.event.OrderAddedEvent;
 import com.stocat.match.api.engine.event.OrderbookEvent;
@@ -20,27 +21,31 @@ import java.util.List;
  * Reactive 종목별 매칭 워커
  * - 단일 종목의 체결 처리를 담당
  * - Reactor Scheduler (단일 스레드)로 순서 보장
- * - OrderQueue 하나만 관리
- * - 이벤트 소스 시간 순서 보장
+ * - 담당 종목에 해당하는 OrderQueue 하나만 관리
  */
 @Slf4j
 public class ReactiveSymbolMatchingWorker implements MatchingWorker {
     private final String symbol;
     private final OrderQueue orderQueue;
     private final MatchingEngine matchingEngine;
+
+    // 이벤트 처리를 위한 단일 스레드 스케줄러 (종목별 순서 보장)
     private final Scheduler scheduler;
+    // 주문/호가 이벤트를 수신하여 순차 처리하기 위한 Reactor Sink (멀티 프로듀서 지원)
     private final Sinks.Many<MatchingEvent> eventSink;
+    // shutdown 시 이벤트 구독 취소를 위한 Disposable
     private Disposable disposable;
+
+    private long eventSeq = 0;
 
     public ReactiveSymbolMatchingWorker(String symbol, MatchingEngine matchingEngine) {
         this.symbol = symbol;
         this.orderQueue = new OrderQueue(symbol);
         this.matchingEngine = matchingEngine;
-        this.scheduler = Schedulers.newSingle("reactive-matching-" + symbol, true);
+        this.scheduler = Schedulers.newSingle("reactive-matching-" + symbol, false);
         this.eventSink = Sinks.many().multicast().onBackpressureBuffer();
 
         initializeEventProcessor();
-        log.info("ReactiveSymbolMatchingWorker 생성: symbol={}", symbol);
     }
 
     /**
@@ -51,6 +56,8 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
                 .publishOn(scheduler)
                 .subscribe(this::processEvent);
     }
+
+    // === Thread-Safe (외부 스레드에서 호출) ===
 
     /**
      * 주문 추가
@@ -79,13 +86,15 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
         eventSink.tryEmitNext(new OrderbookEvent(orderbook));
     }
 
+    // === Single-Threaded (scheduler 스레드에서만 실행) ===
+
     /**
      * 이벤트 처리
      */
     private void processEvent(MatchingEvent event) {
         switch (event) {
             case OrderAddedEvent orderEvent -> handleOrderAdded(orderEvent.order());
-            case OrderbookEvent snapshotEvent -> handleSnapshot(snapshotEvent.orderbook());
+            case OrderbookEvent orderbookEvent -> handleOrderbook(orderbookEvent.orderbook());
         }
     }
 
@@ -93,89 +102,48 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
      * 주문 추가 처리
      */
     private void handleOrderAdded(Order order) {
+        order = order.withSeq(this.eventSeq);
+        this.eventSeq += 1;
         orderQueue.addOrder(order);
-        log.debug("주문 추가 완료: symbol={}, order={}", symbol, order);
     }
 
     /**
      * 호가 처리
      */
-    private void handleSnapshot(Orderbook snapshot) {
-        log.debug("호가 처리 시작: orderbook={}", snapshot);
-
+    private void handleOrderbook(Orderbook orderbook) {
         List<Fill> fills = new ArrayList<>();
 
-        // 매수 주문 체결 처리
-        fills.addAll(processBuyOrders(snapshot));
+        fills.addAll(processOrders(TradeSide.BUY, orderbook));
+        fills.addAll(processOrders(TradeSide.SELL, orderbook));
 
-        // 매도 주문 체결 처리
-        fills.addAll(processSellOrders(snapshot));
-
-        // 체결 결과 발행
         if (!fills.isEmpty()) {
             publishFills(fills);
         }
-
-        log.debug("호가 처리 완료: symbol={}, fillCount={}", symbol, fills.size());
     }
 
     /**
-     * 매수 주문 체결 처리
+     * 주문 체결 처리
      */
-    private List<Fill> processBuyOrders(Orderbook snapshot) {
+    private List<Fill> processOrders(TradeSide side, Orderbook orderbook) {
         List<Fill> fills = new ArrayList<>();
         List<Order> partiallyFilledOrders = new ArrayList<>();
 
-        while (!orderQueue.isBuyOrdersEmpty()) {
-            Order order = orderQueue.peekBuyOrder();
+        while (!orderQueue.isEmpty(side)) {
+            Order order = orderQueue.peek(side);
 
-            FillResult result = matchingEngine.matchBuyOrder(order, snapshot);
+            FillResult result = matchingEngine.match(order, orderbook);
             if (result.isEmpty()) {
                 break;
             }
 
-            // 큐에서 주문 제거
-            orderQueue.pollBuyOrder();
+            orderQueue.poll(side);
             fills.addAll(result.fills());
 
-            // 부분 체결인 경우 남은 주문을 리스트에 보관 (무한루프 방지)
             if (result.hasRemainingOrder()) {
                 partiallyFilledOrders.add(result.remainingOrder());
             }
         }
 
-        // 부분 체결된 주문들을 다시 큐에 추가 (다음 호가에서 처리)
-        partiallyFilledOrders.forEach(orderQueue::addOrder);
-
-        return fills;
-    }
-
-    /**
-     * 매도 주문 체결 처리
-     */
-    private List<Fill> processSellOrders(Orderbook snapshot) {
-        List<Fill> fills = new ArrayList<>();
-        List<Order> partiallyFilledOrders = new ArrayList<>();
-
-        while (!orderQueue.isSellOrdersEmpty()) {
-            Order order = orderQueue.peekSellOrder();
-
-            FillResult result = matchingEngine.matchSellOrder(order, snapshot);
-            if (result.isEmpty()) {
-                break;
-            }
-
-            // 큐에서 주문 제거
-            orderQueue.pollSellOrder();
-            fills.addAll(result.fills());
-
-            // 부분 체결인 경우 남은 주문을 리스트에 보관 (무한루프 방지)
-            if (result.hasRemainingOrder()) {
-                partiallyFilledOrders.add(result.remainingOrder());
-            }
-        }
-
-        // 부분 체결된 주문들을 다시 큐에 추가 (다음 호가에서 처리)
         partiallyFilledOrders.forEach(orderQueue::addOrder);
 
         return fills;
@@ -187,6 +155,8 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
     private void publishFills(List<Fill> fills) {
         fills.forEach(fill -> log.info("Fill 발행: {}", fill));
     }
+
+    // ===========================
 
     /**
      * Graceful shutdown

@@ -50,28 +50,20 @@ public class OrderQueue {
         }
     }
 
-    public Order peekBuyOrder() {
-        return buyOrders.peek();
+    public Order peek(TradeSide side) {
+        return getQueue(side).peek();
     }
 
-    public Order peekSellOrder() {
-        return sellOrders.peek();
+    public Order poll(TradeSide side) {
+        return getQueue(side).poll();
     }
 
-    public Order pollBuyOrder() {
-        return buyOrders.poll();
+    public boolean isEmpty(TradeSide side) {
+        return getQueue(side).isEmpty();
     }
 
-    public Order pollSellOrder() {
-        return sellOrders.poll();
-    }
-
-    public boolean isBuyOrdersEmpty() {
-        return buyOrders.isEmpty();
-    }
-
-    public boolean isSellOrdersEmpty() {
-        return sellOrders.isEmpty();
+    private PriorityQueue<Order> getQueue(TradeSide side) {
+        return side == TradeSide.BUY ? buyOrders : sellOrders;
     }
 
     public String getSymbol() {
