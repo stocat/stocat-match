@@ -17,6 +17,11 @@ redis:
       block-timeout: 5s
       batch-size: 10
 
+# Trade API 설정 (Consul 서비스 디스커버리)
+trade:
+  api:
+    base-url: http://trade-api
+
 # KIS API 설정 (실전투자)
 kis:
   websocket:

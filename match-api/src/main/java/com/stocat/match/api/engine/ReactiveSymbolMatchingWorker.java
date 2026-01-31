@@ -8,6 +8,7 @@ import com.stocat.match.domain.TradeSide;
 import com.stocat.match.api.engine.event.MatchingEvent;
 import com.stocat.match.api.engine.event.OrderAddedEvent;
 import com.stocat.match.api.engine.event.OrderbookEvent;
+import com.stocat.match.api.infrastructure.trade.TradeApiClient;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.Disposable;
 import reactor.core.publisher.Sinks;
@@ -28,6 +29,7 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
     private final String symbol;
     private final OrderQueue orderQueue;
     private final MatchingEngine matchingEngine;
+    private final TradeApiClient tradeApiClient;
 
     // 이벤트 처리를 위한 단일 스레드 스케줄러 (종목별 순서 보장)
     private final Scheduler scheduler;
@@ -38,10 +40,11 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
 
     private long eventSeq = 0;
 
-    public ReactiveSymbolMatchingWorker(String symbol, MatchingEngine matchingEngine) {
+    public ReactiveSymbolMatchingWorker(String symbol, MatchingEngine matchingEngine, TradeApiClient tradeApiClient) {
         this.symbol = symbol;
         this.orderQueue = new OrderQueue(symbol);
         this.matchingEngine = matchingEngine;
+        this.tradeApiClient = tradeApiClient;
         this.scheduler = Schedulers.newSingle("reactive-matching-" + symbol, false);
         this.eventSink = Sinks.many().multicast().onBackpressureBuffer();
 
@@ -116,9 +119,7 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
         fills.addAll(processOrders(TradeSide.BUY, orderbook));
         fills.addAll(processOrders(TradeSide.SELL, orderbook));
 
-        if (!fills.isEmpty()) {
-            publishFills(fills);
-        }
+        publishFills(fills);
     }
 
     /**
@@ -150,10 +151,11 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
     }
 
     /**
-     * 체결 결과 발행
+     * 체결 결과 발행 (비동기)
+     * TODO: 배치 전송 여부 상의
      */
     private void publishFills(List<Fill> fills) {
-        fills.forEach(fill -> log.info("Fill 발행: {}", fill));
+        fills.forEach(tradeApiClient::sendFill);
     }
 
     // ===========================
