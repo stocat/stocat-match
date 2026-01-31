@@ -17,7 +17,7 @@ public class TradeApiClient {
 
     public TradeApiClient(
             WebClient.Builder webClientBuilder,
-            @Value("${trade.api.base-url}") String baseUrl
+            @Value("${api.trade.base-url}") String baseUrl
     ) {
         this.webClient = webClientBuilder.baseUrl(baseUrl).build();
     }
