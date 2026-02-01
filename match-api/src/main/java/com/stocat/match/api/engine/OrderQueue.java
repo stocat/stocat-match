@@ -1,9 +1,12 @@
 package com.stocat.match.api.engine;
 
+import com.stocat.match.api.exception.MatchErrorCode;
 import com.stocat.match.domain.TradeSide;
 import com.stocat.match.domain.order.Order;
+import com.stocat.match.exception.ApiException;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
 import java.util.PriorityQueue;
 
 /**
@@ -38,9 +41,8 @@ public class OrderQueue {
      */
     public void addOrder(Order order) {
         if (!order.symbol().equals(this.symbol)) {
-            throw new IllegalArgumentException(
-                    String.format("종목 불일치: expected=%s, actual=%s", this.symbol, order.symbol())
-            );
+            throw new ApiException(MatchErrorCode.SYMBOL_MISMATCH,
+                    Map.of("expected", this.symbol, "actual", order.symbol()));
         }
 
         if (order.side() == TradeSide.BUY) {

@@ -1,6 +1,7 @@
 package com.stocat.match.api.engine;
 
 import com.stocat.match.domain.TradeSide;
+import com.stocat.match.exception.ApiException;
 import com.stocat.match.domain.order.Order;
 import com.stocat.match.domain.order.OrderTif;
 import com.stocat.match.domain.order.OrderType;
@@ -240,7 +241,7 @@ class StockSessionManagerTest {
 
             // when & then
             assertThatThrownBy(() -> sessionManager.routeOrder(order))
-                    .isInstanceOf(IllegalStateException.class)
+                    .isInstanceOf(ApiException.class)
                     .hasMessageContaining("등록되지 않은 종목");
         }
     }
