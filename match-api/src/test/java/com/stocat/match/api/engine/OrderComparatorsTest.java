@@ -26,8 +26,8 @@ class OrderComparatorsTest {
         @Test
         void 시장가_주문이_지정가_주문보다_우선한다() {
             // given
-            Order marketOrder = createMarketBuyOrder("2");
-            Order limitOrder = createLimitBuyOrder(BigDecimal.valueOf(10000), "1");
+            Order marketOrder = createMarketBuyOrder(2L);
+            Order limitOrder = createLimitBuyOrder(BigDecimal.valueOf(10000), 1L);
 
             Comparator<Order> comparator = OrderComparators.buyOrderComparator();
 
@@ -43,8 +43,8 @@ class OrderComparatorsTest {
         @Test
         void 지정가_주문끼리는_가격이_높은_주문이_우선한다() {
             // given
-            Order highPriceOrder = createLimitBuyOrder(BigDecimal.valueOf(10000), "2");
-            Order lowPriceOrder = createLimitBuyOrder(BigDecimal.valueOf(5000), "1");
+            Order highPriceOrder = createLimitBuyOrder(BigDecimal.valueOf(10000), 2L);
+            Order lowPriceOrder = createLimitBuyOrder(BigDecimal.valueOf(5000), 1L);
 
             Comparator<Order> comparator = OrderComparators.buyOrderComparator();
 
@@ -61,8 +61,8 @@ class OrderComparatorsTest {
         void 가격이_같으면_seq가_작은_주문이_우선한다() {
             // given
             BigDecimal samePrice = BigDecimal.valueOf(10000);
-            Order firstOrder = createLimitBuyOrder(samePrice, "1");
-            Order secondOrder = createLimitBuyOrder(samePrice, "2");
+            Order firstOrder = createLimitBuyOrder(samePrice, 1L);
+            Order secondOrder = createLimitBuyOrder(samePrice, 2L);
 
             Comparator<Order> comparator = OrderComparators.buyOrderComparator();
 
@@ -78,8 +78,8 @@ class OrderComparatorsTest {
         @Test
         void 시장가_주문끼리는_seq가_작은_주문이_우선한다() {
             // given
-            Order firstMarketOrder = createMarketBuyOrder("1");
-            Order secondMarketOrder = createMarketBuyOrder("2");
+            Order firstMarketOrder = createMarketBuyOrder(1L);
+            Order secondMarketOrder = createMarketBuyOrder(2L);
 
             Comparator<Order> comparator = OrderComparators.buyOrderComparator();
 
@@ -95,10 +95,10 @@ class OrderComparatorsTest {
         @Test
         void 복합_정렬_우선순위가_올바르게_적용된다() {
             // given
-            Order marketOrder1 = createMarketBuyOrder("3");
-            Order marketOrder2 = createMarketBuyOrder("4");
-            Order highPriceOrder = createLimitBuyOrder(BigDecimal.valueOf(10000), "1");
-            Order lowPriceOrder = createLimitBuyOrder(BigDecimal.valueOf(5000), "2");
+            Order marketOrder1 = createMarketBuyOrder(3L);
+            Order marketOrder2 = createMarketBuyOrder(4L);
+            Order highPriceOrder = createLimitBuyOrder(BigDecimal.valueOf(10000), 1L);
+            Order lowPriceOrder = createLimitBuyOrder(BigDecimal.valueOf(5000), 2L);
 
             Comparator<Order> comparator = OrderComparators.buyOrderComparator();
 
@@ -118,8 +118,8 @@ class OrderComparatorsTest {
         @Test
         void 시장가_주문이_지정가_주문보다_우선한다() {
             // given
-            Order marketOrder = createMarketSellOrder("2");
-            Order limitOrder = createLimitSellOrder(BigDecimal.valueOf(10000), "1");
+            Order marketOrder = createMarketSellOrder(2L);
+            Order limitOrder = createLimitSellOrder(BigDecimal.valueOf(10000), 1L);
 
             Comparator<Order> comparator = OrderComparators.sellOrderComparator();
 
@@ -135,8 +135,8 @@ class OrderComparatorsTest {
         @Test
         void 지정가_주문끼리는_가격이_낮은_주문이_우선한다() {
             // given
-            Order highPriceOrder = createLimitSellOrder(BigDecimal.valueOf(10000), "1");
-            Order lowPriceOrder = createLimitSellOrder(BigDecimal.valueOf(5000), "2");
+            Order highPriceOrder = createLimitSellOrder(BigDecimal.valueOf(10000), 1L);
+            Order lowPriceOrder = createLimitSellOrder(BigDecimal.valueOf(5000), 2L);
 
             Comparator<Order> comparator = OrderComparators.sellOrderComparator();
 
@@ -153,8 +153,8 @@ class OrderComparatorsTest {
         void 가격이_같으면_seq가_작은_주문이_우선한다() {
             // given
             BigDecimal samePrice = BigDecimal.valueOf(10000);
-            Order firstOrder = createLimitSellOrder(samePrice, "1");
-            Order secondOrder = createLimitSellOrder(samePrice, "2");
+            Order firstOrder = createLimitSellOrder(samePrice, 1L);
+            Order secondOrder = createLimitSellOrder(samePrice, 2L);
 
             Comparator<Order> comparator = OrderComparators.sellOrderComparator();
 
@@ -170,8 +170,8 @@ class OrderComparatorsTest {
         @Test
         void 시장가_주문끼리는_seq가_작은_주문이_우선한다() {
             // given
-            Order firstMarketOrder = createMarketSellOrder("1");
-            Order secondMarketOrder = createMarketSellOrder("2");
+            Order firstMarketOrder = createMarketSellOrder(1L);
+            Order secondMarketOrder = createMarketSellOrder(2L);
 
             Comparator<Order> comparator = OrderComparators.sellOrderComparator();
 
@@ -187,10 +187,10 @@ class OrderComparatorsTest {
         @Test
         void 복합_정렬_우선순위가_올바르게_적용된다() {
             // given
-            Order marketOrder1 = createMarketSellOrder("3");
-            Order marketOrder2 = createMarketSellOrder("4");
-            Order highPriceOrder = createLimitSellOrder(BigDecimal.valueOf(10000), "2");
-            Order lowPriceOrder = createLimitSellOrder(BigDecimal.valueOf(5000), "1");
+            Order marketOrder1 = createMarketSellOrder(3L);
+            Order marketOrder2 = createMarketSellOrder(4L);
+            Order highPriceOrder = createLimitSellOrder(BigDecimal.valueOf(10000), 2L);
+            Order lowPriceOrder = createLimitSellOrder(BigDecimal.valueOf(5000), 1L);
 
             Comparator<Order> comparator = OrderComparators.sellOrderComparator();
 
@@ -205,7 +205,7 @@ class OrderComparatorsTest {
 
     // Test Helper Methods
 
-    private Order createLimitBuyOrder(BigDecimal price, String seq) {
+    private Order createLimitBuyOrder(BigDecimal price, Long seq) {
         return new Order(
                 1L,
                 TEST_SYMBOL,
@@ -218,7 +218,7 @@ class OrderComparatorsTest {
         );
     }
 
-    private Order createMarketBuyOrder(String seq) {
+    private Order createMarketBuyOrder(Long seq) {
         return new Order(
                 1L,
                 TEST_SYMBOL,
@@ -231,7 +231,7 @@ class OrderComparatorsTest {
         );
     }
 
-    private Order createLimitSellOrder(BigDecimal price, String seq) {
+    private Order createLimitSellOrder(BigDecimal price, Long seq) {
         return new Order(
                 1L,
                 TEST_SYMBOL,
@@ -244,7 +244,7 @@ class OrderComparatorsTest {
         );
     }
 
-    private Order createMarketSellOrder(String seq) {
+    private Order createMarketSellOrder(Long seq) {
         return new Order(
                 1L,
                 TEST_SYMBOL,

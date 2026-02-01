@@ -65,7 +65,7 @@ class StockSessionManagerTest {
                 BigDecimal.valueOf(10),
                 BigDecimal.valueOf(50000),
                 OrderTif.GTC,
-                "1"
+                1L
         );
     }
 
