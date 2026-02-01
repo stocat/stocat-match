@@ -8,15 +8,17 @@ import com.stocat.match.domain.TradeSide;
 import com.stocat.match.api.engine.event.MatchingEvent;
 import com.stocat.match.api.engine.event.OrderAddedEvent;
 import com.stocat.match.api.engine.event.OrderbookEvent;
+import com.stocat.match.api.exception.MatchErrorCode;
 import com.stocat.match.api.infrastructure.trade.TradeApiClient;
+import com.stocat.match.exception.ApiException;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.Disposable;
 import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Reactive 종목별 매칭 워커
@@ -40,12 +42,12 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
 
     private long eventSeq = 0;
 
-    public ReactiveSymbolMatchingWorker(String symbol, MatchingEngine matchingEngine, TradeApiClient tradeApiClient) {
+    public ReactiveSymbolMatchingWorker(String symbol, MatchingEngine matchingEngine, TradeApiClient tradeApiClient, Scheduler scheduler) {
         this.symbol = symbol;
         this.orderQueue = new OrderQueue(symbol);
         this.matchingEngine = matchingEngine;
         this.tradeApiClient = tradeApiClient;
-        this.scheduler = Schedulers.newSingle("reactive-matching-" + symbol, false);
+        this.scheduler = scheduler;
         this.eventSink = Sinks.many().multicast().onBackpressureBuffer();
 
         initializeEventProcessor();
@@ -67,9 +69,8 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
      */
     public void addOrder(Order order) {
         if (!order.symbol().equals(this.symbol)) {
-            throw new IllegalArgumentException(
-                    String.format("종목 불일치: expected=%s, actual=%s", this.symbol, order.symbol())
-            );
+            throw new ApiException(MatchErrorCode.SYMBOL_MISMATCH,
+                    Map.of("expected", this.symbol, "actual", order.symbol()));
         }
 
         eventSink.tryEmitNext(new OrderAddedEvent(order));
@@ -81,9 +82,8 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
     @Override
     public void processOrderbook(Orderbook orderbook) {
         if (!orderbook.symbol().equals(this.symbol)) {
-            throw new IllegalArgumentException(
-                    String.format("종목 불일치: expected=%s, actual=%s", this.symbol, orderbook.symbol())
-            );
+            throw new ApiException(MatchErrorCode.SYMBOL_MISMATCH,
+                    Map.of("expected", this.symbol, "actual", orderbook.symbol()));
         }
 
         eventSink.tryEmitNext(new OrderbookEvent(orderbook));
