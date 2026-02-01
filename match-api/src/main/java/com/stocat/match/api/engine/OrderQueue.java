@@ -1,9 +1,12 @@
 package com.stocat.match.api.engine;
 
+import com.stocat.match.api.exception.MatchErrorCode;
 import com.stocat.match.domain.TradeSide;
 import com.stocat.match.domain.order.Order;
+import com.stocat.match.exception.ApiException;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
 import java.util.PriorityQueue;
 
 /**
@@ -38,9 +41,8 @@ public class OrderQueue {
      */
     public void addOrder(Order order) {
         if (!order.symbol().equals(this.symbol)) {
-            throw new IllegalArgumentException(
-                    String.format("종목 불일치: expected=%s, actual=%s", this.symbol, order.symbol())
-            );
+            throw new ApiException(MatchErrorCode.SYMBOL_MISMATCH,
+                    Map.of("expected", this.symbol, "actual", order.symbol()));
         }
 
         if (order.side() == TradeSide.BUY) {
@@ -50,28 +52,20 @@ public class OrderQueue {
         }
     }
 
-    public Order peekBuyOrder() {
-        return buyOrders.peek();
+    public Order peek(TradeSide side) {
+        return getQueue(side).peek();
     }
 
-    public Order peekSellOrder() {
-        return sellOrders.peek();
+    public Order poll(TradeSide side) {
+        return getQueue(side).poll();
     }
 
-    public Order pollBuyOrder() {
-        return buyOrders.poll();
+    public boolean isEmpty(TradeSide side) {
+        return getQueue(side).isEmpty();
     }
 
-    public Order pollSellOrder() {
-        return sellOrders.poll();
-    }
-
-    public boolean isBuyOrdersEmpty() {
-        return buyOrders.isEmpty();
-    }
-
-    public boolean isSellOrdersEmpty() {
-        return sellOrders.isEmpty();
+    private PriorityQueue<Order> getQueue(TradeSide side) {
+        return side == TradeSide.BUY ? buyOrders : sellOrders;
     }
 
     public String getSymbol() {

@@ -1,6 +1,8 @@
 package com.stocat.match.api.engine;
 
+import com.stocat.match.api.exception.MatchErrorCode;
 import com.stocat.match.domain.order.Order;
+import com.stocat.match.exception.ApiException;
 import com.stocat.match.domain.orderbook.Orderbook;
 import com.stocat.match.redis.stream.OrderbookStreamClient;
 import com.stocat.match.redis.stream.OrderbookStreamMessage;
@@ -91,7 +93,8 @@ public class StockSessionManager {
     public void routeOrder(Order order) {
         StockSession session = sessions.get(order.symbol());
         if (session == null) {
-            throw new IllegalStateException("등록되지 않은 종목: " + order.symbol());
+            throw new ApiException(MatchErrorCode.SYMBOL_NOT_REGISTERED,
+                    Map.of("symbol", order.symbol()));
         }
         session.worker().addOrder(order);
     }
@@ -127,7 +130,8 @@ public class StockSessionManager {
     private void routeOrderbook(Orderbook orderbook) {
         StockSession session = sessions.get(orderbook.symbol());
         if (session == null) {
-            throw new IllegalStateException("등록되지 않은 종목: " + orderbook.symbol());
+            throw new ApiException(MatchErrorCode.SYMBOL_NOT_REGISTERED,
+                    Map.of("symbol", orderbook.symbol()));
         }
         session.worker().processOrderbook(orderbook);
     }

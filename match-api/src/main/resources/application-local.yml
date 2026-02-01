@@ -1,0 +1,22 @@
+server:
+  port: 8090
+
+spring:
+  config:
+    activate:
+      on-profile: local
+    import: "optional:consul:"
+  cloud:
+    consul:
+      host: ${CONSUL_HOST:localhost}
+      port: ${CONSUL_PORT:8500}
+      discovery:
+        register: true
+        prefer-ip-address: true
+        health-check-path: /actuator/health
+        health-check-interval: 10s
+
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379

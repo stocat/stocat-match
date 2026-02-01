@@ -40,7 +40,7 @@ class MatchingEngineTest {
                 quantity,
                 price,
                 OrderTif.GTC,
-                "1"
+                1L
         );
     }
 
@@ -53,7 +53,7 @@ class MatchingEngineTest {
                 quantity,
                 null,
                 OrderTif.GTC,
-                "1"
+                1L
         );
     }
 
@@ -66,7 +66,7 @@ class MatchingEngineTest {
                 quantity,
                 price,
                 OrderTif.GTC,
-                "1"
+                1L
         );
     }
 
