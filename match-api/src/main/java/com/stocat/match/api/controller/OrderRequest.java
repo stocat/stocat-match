@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 public record OrderRequest(
         @NotNull Long id,
@@ -20,6 +21,6 @@ public record OrderRequest(
         @NotNull OrderTif tif
 ) {
     public Order toOrder() {
-        return new Order(id, symbol, side, type, quantity, price, tif, null);
+        return new Order(id, symbol, side, type, quantity, price, tif, LocalDateTime.now());
     }
 }

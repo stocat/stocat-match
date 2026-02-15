@@ -40,8 +40,6 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
     // shutdown 시 이벤트 구독 취소를 위한 Disposable
     private Disposable disposable;
 
-    private long eventSeq = 0;
-
     public ReactiveSymbolMatchingWorker(String symbol, MatchingEngine matchingEngine, TradeApiClient tradeApiClient, Scheduler scheduler) {
         this.symbol = symbol;
         this.orderQueue = new OrderQueue(symbol);
@@ -105,8 +103,6 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
      * 주문 추가 처리
      */
     private void handleOrderAdded(Order order) {
-        order = order.withSeq(this.eventSeq);
-        this.eventSeq += 1;
         orderQueue.addOrder(order);
     }
 
