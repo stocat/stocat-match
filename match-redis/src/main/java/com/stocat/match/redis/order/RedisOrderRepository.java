@@ -23,14 +23,16 @@ public class RedisOrderRepository implements OrderRepository {
     private static final double BUY_MARKET_SCORE = -Double.MAX_VALUE;
     private static final double SELL_MARKET_SCORE = -1;
 
-    private final OrderZsetClient rankingStore;
-    private final OrderHashClient detailStore;
+    private final OrderZsetClient zsetClient;
+    private final OrderHashClient hashClient;
     private final long priceScale;
 
-    public RedisOrderRepository(OrderZsetClient rankingStore,
-                                OrderHashClient detailStore, RedisOrderQueueProperties orderQueueProperties) {
-        this.rankingStore = rankingStore;
-        this.detailStore = detailStore;
+    public RedisOrderRepository(
+            OrderZsetClient zsetClient,
+            OrderHashClient hashClient,
+            RedisOrderQueueProperties orderQueueProperties) {
+        this.zsetClient = zsetClient;
+        this.hashClient = hashClient;
         this.priceScale = orderQueueProperties.priceScale();
     }
 
@@ -40,29 +42,29 @@ public class RedisOrderRepository implements OrderRepository {
         String member = toMember(order);
         String side = sideKey(order.side());
 
-        return rankingStore.add(side, order.symbol(), score, member)
-                .then(detailStore.save(order));
+        return zsetClient.add(side, order.symbol(), score, member)
+                .then(hashClient.save(order));
     }
 
     @Override
     public Flux<Order> fetchMatchableOrders(String symbol, TradeSide side, BigDecimal matchPrice) {
         double maxScore = toMaxScore(side, matchPrice);
-        return rankingStore.rangeMembersByScore(sideKey(side), symbol,
+        return zsetClient.rangeMembersByScore(sideKey(side), symbol,
                         Double.NEGATIVE_INFINITY, maxScore)
                 .map(this::parseOrderId)
-                .flatMapSequential(detailStore::findById);
+                .flatMapSequential(hashClient::findById);
     }
 
     @Override
     public Mono<Boolean> remove(Long orderId) {
-        return detailStore.findById(orderId)
-                .flatMap(order -> detailStore.delete(orderId)
+        return hashClient.findById(orderId)
+                .flatMap(order -> hashClient.delete(orderId)
                         .flatMap(deleted -> {
                             if (!deleted) {
                                 return Mono.just(false);
                             }
                             String member = toMember(order);
-                            return rankingStore.remove(sideKey(order.side()), order.symbol(), member)
+                            return zsetClient.remove(sideKey(order.side()), order.symbol(), member)
                                     .thenReturn(true);
                         }))
                 .defaultIfEmpty(false);
@@ -70,12 +72,12 @@ public class RedisOrderRepository implements OrderRepository {
 
     @Override
     public Mono<Void> updateQuantity(Order order, BigDecimal newQuantity) {
-        return detailStore.updateQuantity(order.id(), newQuantity);
+        return hashClient.updateQuantity(order.id(), newQuantity);
     }
 
     @Override
     public Mono<Boolean> isEmpty(String symbol, TradeSide side) {
-        return rankingStore.isEmpty(sideKey(side), symbol);
+        return zsetClient.isEmpty(sideKey(side), symbol);
     }
 
     // === 변환 로직 ===

@@ -7,6 +7,6 @@ import org.springframework.boot.context.properties.bind.DefaultValue;
 public record RedisOrderQueueProperties(
         @DefaultValue("order:") String keyPrefix,
         @DefaultValue("order:detail:") String detailKeyPrefix,
-        @DefaultValue("1000000") long priceScale
+        @DefaultValue("10000") long priceScale
 ) {
 }
