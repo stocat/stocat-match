@@ -46,6 +46,11 @@ public class RedisOrderRepository implements OrderRepository {
                 .then(hashClient.save(order));
     }
 
+    /**
+     * 체결 가능 주문을 우선순위 순으로 일괄 조회한다.
+     * 1. ZRANGEBYSCORE(-∞, maxScore)로 score 범위 내 member 조회
+     * 2. member에서 orderId 파싱 → HASH에서 주문 상세 조회
+     */
     @Override
     public Flux<Order> fetchMatchableOrders(String symbol, TradeSide side, BigDecimal matchPrice) {
         double maxScore = toMaxScore(side, matchPrice);
@@ -55,18 +60,21 @@ public class RedisOrderRepository implements OrderRepository {
                 .flatMapSequential(hashClient::findById);
     }
 
+    /**
+     * 주문을 제거한다. Hash 삭제를 CAS로 활용하여 취소 경합을 감지한다.
+     * - Hash 삭제 성공 → ZSET 삭제 → true
+     * - Hash 삭제 실패(이미 취소됨) → false
+     */
     @Override
     public Mono<Boolean> remove(Long orderId) {
         return hashClient.findById(orderId)
                 .flatMap(order -> hashClient.delete(orderId)
+                        .filter(deleted -> deleted)
                         .flatMap(deleted -> {
-                            if (!deleted) {
-                                return Mono.just(false);
-                            }
                             String member = toMember(order);
-                            return zsetClient.remove(sideKey(order.side()), order.symbol(), member)
-                                    .thenReturn(true);
-                        }))
+                            return zsetClient.remove(sideKey(order.side()), order.symbol(), member);
+                        })
+                        .hasElement())
                 .defaultIfEmpty(false);
     }
 
