@@ -1,9 +1,12 @@
 package com.stocat.match.redis.config;
 
+import com.stocat.match.redis.order.RedisOrderQueueProperties;
+import com.stocat.match.redis.stream.RedisStreamProperties;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration;
 import org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -20,6 +23,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
  */
 @Configuration
 @EnableAutoConfiguration(exclude = {RedisAutoConfiguration.class, RedisReactiveAutoConfiguration.class})
+@EnableConfigurationProperties({RedisOrderQueueProperties.class, RedisStreamProperties.class})
 public class RedisConfig {
     @Bean
     @ConfigurationProperties(prefix = "spring.data.redis")

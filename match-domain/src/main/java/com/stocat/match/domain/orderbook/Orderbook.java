@@ -1,11 +1,13 @@
 package com.stocat.match.domain.orderbook;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 public record Orderbook(
         String symbol,
         List<PriceLevel> asks, // 매도호가 (매수가격)
-        List<PriceLevel> bids // 매수호가 (매도가격)
+        List<PriceLevel> bids, // 매수호가 (매도가격)
+        LocalDateTime timestamp
 ) {
     public Orderbook {
         if (symbol == null || symbol.isBlank()) {

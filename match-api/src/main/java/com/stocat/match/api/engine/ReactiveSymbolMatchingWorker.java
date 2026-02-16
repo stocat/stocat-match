@@ -1,175 +1,140 @@
 package com.stocat.match.api.engine;
 
 import com.stocat.match.domain.fill.Fill;
-import com.stocat.match.domain.fill.FillResult;
 import com.stocat.match.domain.order.Order;
+import com.stocat.match.domain.order.OrderRepository;
 import com.stocat.match.domain.orderbook.Orderbook;
 import com.stocat.match.domain.TradeSide;
-import com.stocat.match.api.engine.event.MatchingEvent;
-import com.stocat.match.api.engine.event.OrderAddedEvent;
-import com.stocat.match.api.engine.event.OrderbookEvent;
 import com.stocat.match.api.exception.MatchErrorCode;
 import com.stocat.match.api.infrastructure.trade.TradeApiClient;
 import com.stocat.match.exception.ApiException;
 import lombok.extern.slf4j.Slf4j;
-import reactor.core.Disposable;
-import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
 
-import java.util.ArrayList;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 
 /**
  * Reactive 종목별 매칭 워커
  * - 단일 종목의 체결 처리를 담당
  * - Reactor Scheduler (단일 스레드)로 순서 보장
- * - 담당 종목에 해당하는 OrderQueue 하나만 관리
+ * - OrderRepository (Redis)를 통해 주문 관리
  */
 @Slf4j
 public class ReactiveSymbolMatchingWorker implements MatchingWorker {
     private final String symbol;
-    private final OrderQueue orderQueue;
+    private final OrderRepository orderRepository;
     private final MatchingEngine matchingEngine;
     private final TradeApiClient tradeApiClient;
-
-    // 이벤트 처리를 위한 단일 스레드 스케줄러 (종목별 순서 보장)
     private final Scheduler scheduler;
-    // 주문/호가 이벤트를 수신하여 순차 처리하기 위한 Reactor Sink (멀티 프로듀서 지원)
-    private final Sinks.Many<MatchingEvent> eventSink;
-    // shutdown 시 이벤트 구독 취소를 위한 Disposable
-    private Disposable disposable;
 
-    public ReactiveSymbolMatchingWorker(String symbol, MatchingEngine matchingEngine, TradeApiClient tradeApiClient, Scheduler scheduler) {
+    public ReactiveSymbolMatchingWorker(String symbol, OrderRepository orderRepository,
+                                        MatchingEngine matchingEngine, TradeApiClient tradeApiClient,
+                                        Scheduler scheduler) {
         this.symbol = symbol;
-        this.orderQueue = new OrderQueue(symbol);
+        this.orderRepository = orderRepository;
         this.matchingEngine = matchingEngine;
         this.tradeApiClient = tradeApiClient;
         this.scheduler = scheduler;
-        this.eventSink = Sinks.many().multicast().onBackpressureBuffer();
-
-        initializeEventProcessor();
     }
 
     /**
-     * 이벤트 프로세서 초기화
-     */
-    private void initializeEventProcessor() {
-        this.disposable = eventSink.asFlux()
-                .publishOn(scheduler)
-                .subscribe(this::processEvent);
-    }
-
-    // === Thread-Safe (외부 스레드에서 호출) ===
-
-    /**
-     * 주문 추가
-     */
-    public void addOrder(Order order) {
-        if (!order.symbol().equals(this.symbol)) {
-            throw new ApiException(MatchErrorCode.SYMBOL_MISMATCH,
-                    Map.of("expected", this.symbol, "actual", order.symbol()));
-        }
-
-        eventSink.tryEmitNext(new OrderAddedEvent(order));
-    }
-
-    /**
-     * 호가 처리
+     * 호가 이벤트 처리 (리액티브 체인)
+     * - subscribeOn(scheduler)로 종목별 단일 스레드 순서 보장
      */
     @Override
-    public void processOrderbook(Orderbook orderbook) {
+    public Mono<Void> processOrderbook(Orderbook orderbook) {
         if (!orderbook.symbol().equals(this.symbol)) {
-            throw new ApiException(MatchErrorCode.SYMBOL_MISMATCH,
-                    Map.of("expected", this.symbol, "actual", orderbook.symbol()));
+            return Mono.error(new ApiException(MatchErrorCode.SYMBOL_MISMATCH,
+                    Map.of("expected", this.symbol, "actual", orderbook.symbol())));
         }
 
-        eventSink.tryEmitNext(new OrderbookEvent(orderbook));
+        return matchAllOrders(orderbook)
+                .doOnNext(this::publishFills)
+                .then()
+                .subscribeOn(scheduler);
     }
 
-    // === Single-Threaded (scheduler 스레드에서만 실행) ===
+    // === 리액티브 매칭 체인 ===
 
     /**
-     * 이벤트 처리
+     * 매수/매도 체결 후 결과 통합
      */
-    private void processEvent(MatchingEvent event) {
-        switch (event) {
-            case OrderAddedEvent orderEvent -> handleOrderAdded(orderEvent.order());
-            case OrderbookEvent orderbookEvent -> handleOrderbook(orderbookEvent.orderbook());
+    private Mono<List<Fill>> matchAllOrders(Orderbook orderbook) {
+        return Flux.concat(
+                        processOrders(TradeSide.BUY, orderbook),
+                        processOrders(TradeSide.SELL, orderbook)
+                )
+                .flatMapIterable(Function.identity())
+                .collectList();
+    }
+
+    /**
+     * Batch fetch 기반 주문 체결 처리
+     * - score 범위로 체결 가능한 주문을 한 번에 조회
+     * - concatMap으로 순차 처리, takeWhile로 가격 불일치 시 중단
+     */
+    private Mono<List<Fill>> processOrders(TradeSide side, Orderbook orderbook) {
+        BigDecimal matchPrice = getMatchPrice(side, orderbook);
+        if (matchPrice == null) {
+            return Mono.just(List.of());
+        }
+
+        return orderRepository.fetchMatchableOrders(symbol, side, matchPrice)
+                .concatMap(order -> matchOrder(order, orderbook))
+                .takeWhile(result -> !result.isStop())
+                .flatMap(result -> Flux.fromIterable(result.fills()))
+                .collectList();
+    }
+
+    /**
+     * 단건 주문 매칭 + 후처리
+     * - STOP: 가격 불일치 → 이후 주문도 불가
+     * - SKIP: 시간 제약 → 다음 주문 계속
+     * - 부분 체결: updateQuantity
+     * - 완전 체결: remove(orderId) → CAS (Hash 삭제 성공 여부로 취소 감지)
+     */
+    private Mono<MatchResult> matchOrder(Order order, Orderbook orderbook) {
+        MatchResult result = matchingEngine.match(order, orderbook);
+        if (!result.isFilled()) {
+            return Mono.just(result);
+        }
+
+        if (result.isPartiallyFilled()) {
+            return orderRepository.updateQuantity(order, result.remainingQuantity())
+                    .thenReturn(result);
+        }
+
+        return orderRepository.remove(order.id())
+                .map(removed -> removed ? result : MatchResult.skip(order.quantity()));
+    }
+
+    private BigDecimal getMatchPrice(TradeSide side, Orderbook orderbook) {
+        if (side == TradeSide.BUY) {
+            return orderbook.asks() != null && !orderbook.asks().isEmpty()
+                    ? orderbook.asks().getFirst().price() : null;
+        } else {
+            return orderbook.bids() != null && !orderbook.bids().isEmpty()
+                    ? orderbook.bids().getFirst().price() : null;
         }
     }
 
-    /**
-     * 주문 추가 처리
-     */
-    private void handleOrderAdded(Order order) {
-        orderQueue.addOrder(order);
-    }
-
-    /**
-     * 호가 처리
-     */
-    private void handleOrderbook(Orderbook orderbook) {
-        List<Fill> fills = new ArrayList<>();
-
-        fills.addAll(processOrders(TradeSide.BUY, orderbook));
-        fills.addAll(processOrders(TradeSide.SELL, orderbook));
-
-        publishFills(fills);
-    }
-
-    /**
-     * 주문 체결 처리
-     */
-    private List<Fill> processOrders(TradeSide side, Orderbook orderbook) {
-        List<Fill> fills = new ArrayList<>();
-        List<Order> partiallyFilledOrders = new ArrayList<>();
-
-        while (!orderQueue.isEmpty(side)) {
-            Order order = orderQueue.peek(side);
-
-            FillResult result = matchingEngine.match(order, orderbook);
-            if (result.isEmpty()) {
-                break;
-            }
-
-            orderQueue.poll(side);
-            fills.addAll(result.fills());
-
-            if (result.hasRemainingOrder()) {
-                partiallyFilledOrders.add(result.remainingOrder());
-            }
-        }
-
-        partiallyFilledOrders.forEach(orderQueue::addOrder);
-
-        return fills;
-    }
-
-    /**
-     * 체결 결과 발행 (비동기)
-     * TODO: 배치 전송 여부 상의
-     */
     private void publishFills(List<Fill> fills) {
         fills.forEach(tradeApiClient::sendFill);
     }
 
     // ===========================
 
-    /**
-     * Graceful shutdown
-     */
+    @Override
     public void shutdown() {
-
-        if (disposable != null && !disposable.isDisposed()) {
-            disposable.dispose();
-        }
-
-        eventSink.tryEmitComplete();
         scheduler.dispose();
-
     }
 
+    @Override
     public String getSymbol() {
         return symbol;
     }

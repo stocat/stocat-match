@@ -2,7 +2,6 @@ package com.stocat.match.api.engine;
 
 import com.stocat.match.domain.TradeSide;
 import com.stocat.match.domain.fill.Fill;
-import com.stocat.match.domain.fill.FillResult;
 import com.stocat.match.domain.order.Order;
 import com.stocat.match.domain.order.OrderTif;
 import com.stocat.match.domain.order.OrderType;
@@ -85,10 +84,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), List.of());
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).isEmpty();
                 Assertions.assertThat(result.totalFilledQuantity()).isZero();
                 Assertions.assertThat(result.remainingOrder()).isEqualTo(order);
@@ -108,10 +107,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(1);
                 Assertions.assertThat(result.fills().get(0).price()).isEqualTo(askPrice);
                 Assertions.assertThat(result.remainingOrder()).isNull();
@@ -132,10 +131,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).isEmpty();
                 Assertions.assertThat(result.remainingOrder().quantity()).isEqualTo(quantity);
                 Assertions.assertThat(result.totalFilledQuantity()).isZero();
@@ -154,10 +153,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(1);
                 Assertions.assertThat(result.fills().get(0).price()).isEqualTo(price);
                 Assertions.assertThat(result.remainingOrder()).isNull();
@@ -179,10 +178,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(1);
                 Assertions.assertThat(result.fills().get(0).price()).isEqualTo(price);
                 Assertions.assertThat(result.remainingOrder().quantity()).isEqualTo(orderQuantity.subtract(availableQuantity));
@@ -209,10 +208,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(2);
 
                 Fill fill1 = result.fills().get(0);
@@ -253,10 +252,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(2);
 
                 Fill fill1 = result.fills().get(0);
@@ -289,10 +288,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), List.of());
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).isEmpty();
                 Assertions.assertThat(result.totalFilledQuantity()).isZero();
                 Assertions.assertThat(result.remainingOrder()).isEqualTo(order);
@@ -312,10 +311,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(1);
                 Assertions.assertThat(result.fills().get(0).price()).isEqualTo(bidPrice);
                 Assertions.assertThat(result.remainingOrder()).isNull();
@@ -336,10 +335,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).isEmpty();
                 Assertions.assertThat(result.remainingOrder().quantity()).isEqualTo(quantity);
                 Assertions.assertThat(result.totalFilledQuantity()).isZero();
@@ -358,10 +357,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(1);
                 Assertions.assertThat(result.fills().get(0).price()).isEqualTo(price);
                 Assertions.assertThat(result.remainingOrder()).isNull();
@@ -383,10 +382,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(1);
                 Assertions.assertThat(result.fills().get(0).price()).isEqualTo(price);
                 Assertions.assertThat(result.remainingOrder().quantity()).isEqualTo(orderQuantity.subtract(availableQuantity));
@@ -413,10 +412,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, List.of(), bids);
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(2);
 
                 Fill fill1 = result.fills().get(0);
@@ -457,10 +456,10 @@ class MatchingEngineTest {
             Orderbook orderbook = new Orderbook(TEST_SYMBOL, asks, List.of());
 
             // when
-            FillResult fillResult = matchingEngine.match(order, orderbook);
+            MatchResult matchResult = matchingEngine.match(order, orderbook);
 
             // then
-            Assertions.assertThat(fillResult).satisfies(result -> {
+            Assertions.assertThat(matchResult).satisfies(result -> {
                 Assertions.assertThat(result.fills()).hasSize(2);
 
                 Fill fill1 = result.fills().get(0);

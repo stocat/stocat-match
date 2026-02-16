@@ -1,10 +1,5 @@
 package com.stocat.match.api.engine;
 
-import com.stocat.match.domain.TradeSide;
-import com.stocat.match.exception.ApiException;
-import com.stocat.match.domain.order.Order;
-import com.stocat.match.domain.order.OrderTif;
-import com.stocat.match.domain.order.OrderType;
 import com.stocat.match.redis.stream.OrderbookStreamClient;
 import com.stocat.match.redis.stream.OrderbookStreamMessage;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +13,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.lang.reflect.Field;
-import java.math.BigDecimal;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,19 +49,6 @@ class StockSessionManagerTest {
     @BeforeEach
     void setUp() {
         sessionManager = new StockSessionManager(workerFactory, streamClient);
-    }
-
-    private Order createSimpleOrder(String symbol) {
-        return new Order(
-                1L,
-                symbol,
-                TradeSide.BUY,
-                OrderType.LIMIT,
-                BigDecimal.valueOf(10),
-                BigDecimal.valueOf(50000),
-                OrderTif.GTC,
-                1L
-        );
     }
 
     @SuppressWarnings("unchecked")
@@ -214,35 +195,31 @@ class StockSessionManagerTest {
     }
 
     @Nested
-    @DisplayName("주문 라우팅 시")
-    class RouteOrder {
+    @DisplayName("종목 등록 여부 확인 시")
+    class IsSymbolRegistered {
 
         @Test
-        void 등록된_심볼로_주문이_라우팅된다() {
+        void 등록된_종목은_true를_반환한다() {
             // given
             given(streamClient.createConsumerGroup(anyString())).willReturn(Mono.empty());
             given(streamClient.subscribe(anyString(), anyString())).willReturn(Flux.never());
             given(workerFactory.create(TEST_SYMBOL)).willReturn(mockWorker);
             sessionManager.registerSymbol(TEST_SYMBOL);
 
-            Order order = createSimpleOrder(TEST_SYMBOL);
-
             // when
-            sessionManager.routeOrder(order);
+            boolean result = sessionManager.isSymbolRegistered(TEST_SYMBOL);
 
             // then
-            then(mockWorker).should(times(1)).addOrder(order);
+            assertThat(result).isTrue();
         }
 
         @Test
-        void 등록되지_않은_심볼로_주문_시_예외가_발생한다() {
-            // given
-            Order order = createSimpleOrder("UNKNOWN");
+        void 등록되지_않은_종목은_false를_반환한다() {
+            // when
+            boolean result = sessionManager.isSymbolRegistered("UNKNOWN");
 
-            // when & then
-            assertThatThrownBy(() -> sessionManager.routeOrder(order))
-                    .isInstanceOf(ApiException.class)
-                    .hasMessageContaining("등록되지 않은 종목");
+            // then
+            assertThat(result).isFalse();
         }
     }
 
