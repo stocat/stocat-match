@@ -11,6 +11,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import reactor.test.StepVerifier;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
@@ -25,6 +28,15 @@ class OrderZsetClientTest {
 
     private static final String KEY_PREFIX = "order:";
     private static final String TEST_SYMBOL = "NVDA";
+    private static final long PRICE_SCALE = 10000;
+
+    /**
+     * 실제 RedisOrderRepository.toMember()와 동일한 포맷: {epochMillis 15자리}|{orderId}
+     */
+    private static String toMember(LocalDateTime createdAt, long orderId) {
+        long epochMillis = createdAt.toInstant(ZoneOffset.UTC).toEpochMilli();
+        return String.format("%015d|%d", epochMillis, orderId);
+    }
 
     @BeforeEach
     void setUp() {
@@ -102,6 +114,68 @@ class OrderZsetClientTest {
             // when & then
             StepVerifier.create(client.rangeMembersByScore("sell", TEST_SYMBOL,
                             Double.NEGATIVE_INFINITY, 500000.0))
+                    .verifyComplete();
+        }
+
+        @Test
+        void 같은_가격이면_시간순으로_정렬된다() {
+            // given — 동일 가격(score), 다른 시간
+            double sameScore = -1000 * PRICE_SCALE;
+            LocalDateTime early = LocalDateTime.of(2025, 1, 1, 9, 0, 0);
+            LocalDateTime late = LocalDateTime.of(2025, 1, 1, 9, 0, 1);
+
+            String earlyMember = toMember(early, 1);
+            String lateMember = toMember(late, 2);
+
+            // 늦은 주문을 먼저 삽입해도 결과는 시간순
+            client.add("buy", TEST_SYMBOL, sameScore, lateMember).block();
+            client.add("buy", TEST_SYMBOL, sameScore, earlyMember).block();
+
+            // when & then
+            StepVerifier.create(client.rangeMembersByScore("buy", TEST_SYMBOL,
+                            Double.NEGATIVE_INFINITY, sameScore))
+                    .expectNext(earlyMember)
+                    .expectNext(lateMember)
+                    .verifyComplete();
+        }
+
+        @Test
+        void 매수_시장가가_지정가보다_먼저_조회된다() {
+            // given
+            double marketScore = -Double.MAX_VALUE;
+            double limitScore = -1000 * PRICE_SCALE;
+
+            String marketMember = toMember(LocalDateTime.of(2025, 1, 1, 9, 0, 1), 2);
+            String limitMember = toMember(LocalDateTime.of(2025, 1, 1, 9, 0, 0), 1);
+
+            client.add("buy", TEST_SYMBOL, limitScore, limitMember).block();
+            client.add("buy", TEST_SYMBOL, marketScore, marketMember).block();
+
+            // when & then
+            StepVerifier.create(client.rangeMembersByScore("buy", TEST_SYMBOL,
+                            Double.NEGATIVE_INFINITY, limitScore))
+                    .expectNext(marketMember)
+                    .expectNext(limitMember)
+                    .verifyComplete();
+        }
+
+        @Test
+        void 매도_시장가가_지정가보다_먼저_조회된다() {
+            // given
+            double marketScore = -1;
+            double limitScore = 1000 * PRICE_SCALE;
+
+            String marketMember = toMember(LocalDateTime.of(2025, 1, 1, 9, 0, 1), 2);
+            String limitMember = toMember(LocalDateTime.of(2025, 1, 1, 9, 0, 0), 1);
+
+            client.add("sell", TEST_SYMBOL, limitScore, limitMember).block();
+            client.add("sell", TEST_SYMBOL, marketScore, marketMember).block();
+
+            // when & then
+            StepVerifier.create(client.rangeMembersByScore("sell", TEST_SYMBOL,
+                            Double.NEGATIVE_INFINITY, limitScore))
+                    .expectNext(marketMember)
+                    .expectNext(limitMember)
                     .verifyComplete();
         }
     }
