@@ -98,6 +98,7 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
      * - 부분 체결: updateQuantity
      * - 완전 체결: remove(orderId) → CAS (Hash 삭제 성공 여부로 취소 감지)
      */
+    // TODO: Tif 옵션 필요 시 구현
     private Mono<MatchResult> matchOrder(Order order, Orderbook orderbook) {
         MatchResult result = matchingEngine.match(order, orderbook);
         if (!result.isFilled()) {
