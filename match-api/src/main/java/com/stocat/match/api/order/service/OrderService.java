@@ -24,6 +24,17 @@ public class OrderService {
         }
 
         orderRepository.addOrder(order)
-                .subscribe();
+                .block();
+    }
+
+    public void cancelOrder(Long orderId) {
+        boolean removed = orderRepository.remove(orderId)
+                .blockOptional()
+                .orElse(false);
+
+        if (!removed) {
+            throw new ApiException(MatchErrorCode.ORDER_CANCEL_FAILED,
+                    Map.of("orderId", orderId));
+        }
     }
 }
