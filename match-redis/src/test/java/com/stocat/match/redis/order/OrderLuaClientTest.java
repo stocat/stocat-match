@@ -11,6 +11,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import reactor.test.StepVerifier;
 
+import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -88,14 +89,14 @@ class OrderLuaClientTest {
     class Remove {
 
         @Test
-        void Hash와_ZSET이_원자적으로_삭제되고_true를_반환한다() {
+        void Hash와_ZSET이_원자적으로_삭제되고_취소_수량을_반환한다() {
             // given — 먼저 주문 추가
-            Map<String, String> fields = Map.of("id", "1", "symbol", "NVDA", "side", "BUY");
+            Map<String, String> fields = Map.of("id", "1", "symbol", "NVDA", "side", "BUY", "quantity", "10");
             luaClient.addOrder(ZSET_KEY, HASH_KEY, SCORE, MEMBER, fields).block();
 
             // when & then
             StepVerifier.create(luaClient.remove(HASH_KEY, ZSET_KEY, MEMBER))
-                    .expectNext(true)
+                    .assertNext(quantity -> assertThat(quantity).isEqualByComparingTo(BigDecimal.TEN))
                     .verifyComplete();
 
             // then — HASH 삭제 확인
@@ -110,28 +111,27 @@ class OrderLuaClientTest {
         }
 
         @Test
-        void 이미_삭제된_주문이면_false를_반환한다() {
+        void 이미_삭제된_주문이면_empty를_반환한다() {
             // given — 주문이 없는 상태
 
             // when & then
             StepVerifier.create(luaClient.remove(HASH_KEY, ZSET_KEY, MEMBER))
-                    .expectNext(false)
                     .verifyComplete();
         }
 
         @Test
         void 동시_삭제_시_하나만_성공한다() {
             // given
-            Map<String, String> fields = Map.of("id", "1", "symbol", "NVDA", "side", "BUY");
+            Map<String, String> fields = Map.of("id", "1", "symbol", "NVDA", "side", "BUY", "quantity", "10");
             luaClient.addOrder(ZSET_KEY, HASH_KEY, SCORE, MEMBER, fields).block();
 
             // when — 두 번 연속 삭제 시도
-            Boolean first = luaClient.remove(HASH_KEY, ZSET_KEY, MEMBER).block();
-            Boolean second = luaClient.remove(HASH_KEY, ZSET_KEY, MEMBER).block();
+            BigDecimal first = luaClient.remove(HASH_KEY, ZSET_KEY, MEMBER).block();
+            BigDecimal second = luaClient.remove(HASH_KEY, ZSET_KEY, MEMBER).block();
 
             // then
-            assertThat(first).isTrue();
-            assertThat(second).isFalse();
+            assertThat(first).isEqualByComparingTo(BigDecimal.TEN);
+            assertThat(second).isNull();
         }
     }
 }

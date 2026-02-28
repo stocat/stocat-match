@@ -131,7 +131,7 @@ class RedisOrderRepositoryTest {
     class Remove {
 
         @Test
-        void Lua_스크립트로_Hash와_ZSET을_원자적으로_삭제하고_true를_반환한다() {
+        void Lua_스크립트로_Hash와_ZSET을_원자적으로_삭제하고_취소_수량을_반환한다() {
             // given
             Order order = createLimitBuyOrder(1L, BigDecimal.TEN, BigDecimal.valueOf(1000));
             String member = repository.toMember(order);
@@ -140,16 +140,16 @@ class RedisOrderRepositoryTest {
             given(hashClient.hashKey(1L)).willReturn("order:detail:1");
             given(zsetClient.zsetKey("buy", TEST_SYMBOL)).willReturn("order:buy:NVDA");
             given(luaClient.remove("order:detail:1", "order:buy:NVDA", member))
-                    .willReturn(Mono.just(true));
+                    .willReturn(Mono.just(BigDecimal.TEN));
 
             // when & then
             StepVerifier.create(repository.remove(1L))
-                    .expectNext(true)
+                    .expectNext(BigDecimal.TEN)
                     .verifyComplete();
         }
 
         @Test
-        void Hash가_이미_삭제된_경우_false를_반환한다() {
+        void Hash가_이미_삭제된_경우_empty를_반환한다() {
             // given
             Order order = createLimitBuyOrder(1L, BigDecimal.TEN, BigDecimal.valueOf(1000));
             String member = repository.toMember(order);
@@ -158,22 +158,20 @@ class RedisOrderRepositoryTest {
             given(hashClient.hashKey(1L)).willReturn("order:detail:1");
             given(zsetClient.zsetKey("buy", TEST_SYMBOL)).willReturn("order:buy:NVDA");
             given(luaClient.remove("order:detail:1", "order:buy:NVDA", member))
-                    .willReturn(Mono.just(false));
+                    .willReturn(Mono.empty());
 
             // when & then
             StepVerifier.create(repository.remove(1L))
-                    .expectNext(false)
                     .verifyComplete();
         }
 
         @Test
-        void 주문이_존재하지_않으면_false를_반환한다() {
+        void 주문이_존재하지_않으면_empty를_반환한다() {
             // given
             given(hashClient.findById(999L)).willReturn(Mono.empty());
 
             // when & then
             StepVerifier.create(repository.remove(999L))
-                    .expectNext(false)
                     .verifyComplete();
         }
     }

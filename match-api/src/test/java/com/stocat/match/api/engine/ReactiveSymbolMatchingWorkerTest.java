@@ -146,7 +146,7 @@ class ReactiveSymbolMatchingWorkerTest {
             given(orderRepository.fetchMatchableOrders(TEST_SYMBOL, TradeSide.BUY, askPrice))
                     .willReturn(Flux.just(buyOrder));
             given(matchingEngine.match(buyOrder, orderbook)).willReturn(filledResult);
-            given(orderRepository.remove(1L)).willReturn(Mono.just(true));
+            given(orderRepository.remove(1L)).willReturn(Mono.just(BigDecimal.TEN));
 
             // when & then
             StepVerifier.create(worker.processOrderbook(orderbook))
@@ -226,7 +226,7 @@ class ReactiveSymbolMatchingWorkerTest {
                     .willReturn(Flux.just(order1, order2));
             given(matchingEngine.match(order1, orderbook)).willReturn(skipResult);
             given(matchingEngine.match(order2, orderbook)).willReturn(filledResult);
-            given(orderRepository.remove(2L)).willReturn(Mono.just(true));
+            given(orderRepository.remove(2L)).willReturn(Mono.just(BigDecimal.TEN));
 
             // when & then
             StepVerifier.create(worker.processOrderbook(orderbook))
@@ -251,7 +251,7 @@ class ReactiveSymbolMatchingWorkerTest {
             given(orderRepository.fetchMatchableOrders(TEST_SYMBOL, TradeSide.BUY, askPrice))
                     .willReturn(Flux.just(buyOrder));
             given(matchingEngine.match(buyOrder, orderbook)).willReturn(filledResult);
-            given(orderRepository.remove(1L)).willReturn(Mono.just(false));
+            given(orderRepository.remove(1L)).willReturn(Mono.empty());
 
             // when & then
             StepVerifier.create(worker.processOrderbook(orderbook))
@@ -288,8 +288,8 @@ class ReactiveSymbolMatchingWorkerTest {
                     .willReturn(Flux.just(sellOrder));
             given(matchingEngine.match(buyOrder, orderbook)).willReturn(buyResult);
             given(matchingEngine.match(sellOrder, orderbook)).willReturn(sellResult);
-            given(orderRepository.remove(1L)).willReturn(Mono.just(true));
-            given(orderRepository.remove(2L)).willReturn(Mono.just(true));
+            given(orderRepository.remove(1L)).willReturn(Mono.just(BigDecimal.TEN));
+            given(orderRepository.remove(2L)).willReturn(Mono.just(BigDecimal.TEN));
 
             // when & then
             StepVerifier.create(worker.processOrderbook(orderbook))
