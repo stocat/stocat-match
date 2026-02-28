@@ -6,6 +6,7 @@ import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -54,15 +55,14 @@ public class OrderLuaClient {
      * @param hashKey HASH 키 (e.g. order:detail:42)
      * @param zsetKey ZSET 키 (e.g. order:buy:NVDA)
      * @param member  ZSET member
-     * @return 삭제 성공 여부 (이미 삭제된 경우 false)
+     * @return 취소된 수량 (이미 삭제된 경우 empty)
      */
-    public Mono<Boolean> remove(String hashKey, String zsetKey, String member) {
+    public Mono<BigDecimal> remove(String hashKey, String zsetKey, String member) {
         List<String> keys = List.of(hashKey, zsetKey);
 
         return redisTemplate.execute(removeScript, keys, List.of(member))
                 .next()
-                .map(quantity -> true)
-                .defaultIfEmpty(false);
+                .map(BigDecimal::new);
     }
 
     private List<String> buildAddArgs(double score, String member, Map<String, String> fields) {

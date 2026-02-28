@@ -111,7 +111,8 @@ public class ReactiveSymbolMatchingWorker implements MatchingWorker {
         }
 
         return orderRepository.remove(order.id())
-                .map(removed -> removed ? result : MatchResult.skip(order.quantity()));
+                .map(cancelledQuantity -> result)
+                .defaultIfEmpty(MatchResult.skip(order.quantity()));
     }
 
     private BigDecimal getMatchPrice(TradeSide side, Orderbook orderbook) {

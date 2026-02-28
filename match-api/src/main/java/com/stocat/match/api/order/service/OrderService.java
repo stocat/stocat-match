@@ -8,6 +8,7 @@ import com.stocat.match.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 @Service
@@ -27,14 +28,10 @@ public class OrderService {
                 .block();
     }
 
-    public void cancelOrder(Long orderId) {
-        boolean removed = orderRepository.remove(orderId)
+    public BigDecimal cancelOrder(Long orderId) {
+        return orderRepository.remove(orderId)
                 .blockOptional()
-                .orElse(false);
-
-        if (!removed) {
-            throw new ApiException(MatchErrorCode.ORDER_CANCEL_FAILED,
-                    Map.of("orderId", orderId));
-        }
+                .orElseThrow(() -> new ApiException(MatchErrorCode.ORDER_CANCEL_FAILED,
+                        Map.of("orderId", orderId)));
     }
 }

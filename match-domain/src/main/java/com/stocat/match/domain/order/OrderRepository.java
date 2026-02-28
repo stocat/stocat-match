@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 public interface OrderRepository {
     Mono<Void> addOrder(Order order);
     Flux<Order> fetchMatchableOrders(String symbol, TradeSide side, BigDecimal matchPrice);
-    Mono<Boolean> remove(Long orderId);
+    Mono<BigDecimal> remove(Long orderId);
     Mono<Void> updateQuantity(Order order, BigDecimal newQuantity);
     Mono<Boolean> isEmpty(String symbol, TradeSide side);
 }

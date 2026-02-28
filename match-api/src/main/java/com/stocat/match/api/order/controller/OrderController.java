@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
+
 @RestController
 @RequestMapping("/internal/orders")
 @RequiredArgsConstructor
@@ -33,8 +35,8 @@ public class OrderController {
     @Operation(summary = "주문 취소")
     @ApiResponse(responseCode = "200", description = "주문 취소 성공")
     @ApiResponse(responseCode = "400", description = "주문 취소 실패 (이미 체결/취소된 주문)")
-    public ResponseEntity<Void> cancelOrder(@PathVariable Long orderId) {
-        orderService.cancelOrder(orderId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<OrderCancelResponse> cancelOrder(@PathVariable Long orderId) {
+        BigDecimal cancellationAmount = orderService.cancelOrder(orderId);
+        return ResponseEntity.ok(new OrderCancelResponse(cancellationAmount));
     }
 }

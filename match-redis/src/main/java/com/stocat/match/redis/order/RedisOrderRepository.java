@@ -67,21 +67,20 @@ public class RedisOrderRepository implements OrderRepository {
     }
 
     /**
-     * 주문을 제거한다. Lua 스크립트로 DEL(CAS) + ZREM을 원자적으로 수행한다.
+     * 주문을 제거한다. Lua 스크립트로 HGET(quantity) + DEL(CAS) + ZREM을 원자적으로 수행한다.
      * - Hash 조회로 주문 정보(side, symbol, createdAt) 획득
-     * - Lua: Hash 삭제 성공 → ZSET 삭제 → true
-     * - Lua: Hash 삭제 실패(이미 취소됨) → false
+     * - Lua: 잔여 수량 조회 → Hash 삭제 → ZSET 삭제 → 취소 수량 반환
+     * - Lua: Hash 없음(이미 취소됨) → empty
      */
     @Override
-    public Mono<Boolean> remove(Long orderId) {
+    public Mono<BigDecimal> remove(Long orderId) {
         return hashClient.findById(orderId)
                 .flatMap(order -> {
                     String member = toMember(order);
                     String hashKey = hashClient.hashKey(orderId);
                     String zsetKey = zsetClient.zsetKey(sideKey(order.side()), order.symbol());
                     return luaClient.remove(hashKey, zsetKey, member);
-                })
-                .defaultIfEmpty(false);
+                });
     }
 
     @Override
