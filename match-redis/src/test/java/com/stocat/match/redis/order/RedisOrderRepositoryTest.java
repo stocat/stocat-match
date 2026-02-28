@@ -17,14 +17,12 @@ import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
-import static org.mockito.Mockito.never;
 
 @ExtendWith(MockitoExtension.class)
 class RedisOrderRepositoryTest {
@@ -35,6 +33,9 @@ class RedisOrderRepositoryTest {
     @Mock
     private OrderHashClient hashClient;
 
+    @Mock
+    private OrderLuaClient luaClient;
+
     private RedisOrderRepository repository;
 
     private static final long PRICE_SCALE = 10000;
@@ -44,7 +45,7 @@ class RedisOrderRepositoryTest {
     @BeforeEach
     void setUp() {
         RedisOrderQueueProperties properties = new RedisOrderQueueProperties("order:", "order:detail:", PRICE_SCALE);
-        repository = new RedisOrderRepository(zsetClient, hashClient, properties);
+        repository = new RedisOrderRepository(zsetClient, hashClient, luaClient, properties);
     }
 
     private Order createLimitBuyOrder(Long id, BigDecimal quantity, BigDecimal price) {
@@ -68,20 +69,23 @@ class RedisOrderRepositoryTest {
     class AddOrder {
 
         @Test
-        void ZSET과_HASH에_모두_저장된다() {
+        void Lua_스크립트로_ZSET과_HASH에_원자적으로_저장된다() {
             // given
             Order order = createLimitBuyOrder(1L, BigDecimal.TEN, BigDecimal.valueOf(1000));
 
-            given(zsetClient.add(anyString(), eq(TEST_SYMBOL), anyDouble(), anyString()))
-                    .willReturn(Mono.just(true));
-            given(hashClient.save(order)).willReturn(Mono.empty());
+            given(zsetClient.zsetKey("buy", TEST_SYMBOL)).willReturn("order:buy:NVDA");
+            given(hashClient.hashKey(1L)).willReturn("order:detail:1");
+            given(hashClient.toMap(order)).willReturn(Map.of("id", "1", "symbol", TEST_SYMBOL));
+            given(luaClient.addOrder(eq("order:buy:NVDA"), eq("order:detail:1"),
+                    anyDouble(), anyString(), anyMap()))
+                    .willReturn(Mono.empty());
 
             // when & then
             StepVerifier.create(repository.addOrder(order))
                     .verifyComplete();
 
-            then(zsetClient).should().add(eq("buy"), eq(TEST_SYMBOL), anyDouble(), anyString());
-            then(hashClient).should().save(order);
+            then(luaClient).should().addOrder(eq("order:buy:NVDA"), eq("order:detail:1"),
+                    anyDouble(), anyString(), anyMap());
         }
     }
 
@@ -127,37 +131,39 @@ class RedisOrderRepositoryTest {
     class Remove {
 
         @Test
-        void Hash_삭제_성공_시_ZSET도_삭제하고_true를_반환한다() {
+        void Lua_스크립트로_Hash와_ZSET을_원자적으로_삭제하고_true를_반환한다() {
             // given
             Order order = createLimitBuyOrder(1L, BigDecimal.TEN, BigDecimal.valueOf(1000));
             String member = repository.toMember(order);
 
             given(hashClient.findById(1L)).willReturn(Mono.just(order));
-            given(hashClient.delete(1L)).willReturn(Mono.just(true));
-            given(zsetClient.remove("buy", TEST_SYMBOL, member)).willReturn(Mono.just(1L));
+            given(hashClient.hashKey(1L)).willReturn("order:detail:1");
+            given(zsetClient.zsetKey("buy", TEST_SYMBOL)).willReturn("order:buy:NVDA");
+            given(luaClient.remove("order:detail:1", "order:buy:NVDA", member))
+                    .willReturn(Mono.just(true));
 
             // when & then
             StepVerifier.create(repository.remove(1L))
                     .expectNext(true)
                     .verifyComplete();
-
-            then(zsetClient).should().remove("buy", TEST_SYMBOL, member);
         }
 
         @Test
-        void Hash_삭제_실패_시_ZSET_삭제없이_false를_반환한다() {
+        void Hash가_이미_삭제된_경우_false를_반환한다() {
             // given
             Order order = createLimitBuyOrder(1L, BigDecimal.TEN, BigDecimal.valueOf(1000));
+            String member = repository.toMember(order);
 
             given(hashClient.findById(1L)).willReturn(Mono.just(order));
-            given(hashClient.delete(1L)).willReturn(Mono.just(false));
+            given(hashClient.hashKey(1L)).willReturn("order:detail:1");
+            given(zsetClient.zsetKey("buy", TEST_SYMBOL)).willReturn("order:buy:NVDA");
+            given(luaClient.remove("order:detail:1", "order:buy:NVDA", member))
+                    .willReturn(Mono.just(false));
 
             // when & then
             StepVerifier.create(repository.remove(1L))
                     .expectNext(false)
                     .verifyComplete();
-
-            then(zsetClient).should(never()).remove(anyString(), anyString(), anyString());
         }
 
         @Test
@@ -169,8 +175,6 @@ class RedisOrderRepositoryTest {
             StepVerifier.create(repository.remove(999L))
                     .expectNext(false)
                     .verifyComplete();
-
-            then(hashClient).should(never()).delete(999L);
         }
     }
 
