@@ -10,10 +10,12 @@ import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.time.ZoneOffset;
+import java.util.Map;
 
 /**
  * Redis ZSET + HASH 기반 OrderRepository 구현
- * - OrderRankingStore(ZSET)와 OrderDetailStore(HASH)를 조합
+ * - OrderLuaClient로 원자적 추가/삭제 수행
+ * - OrderZsetClient/OrderHashClient로 조회/수량 갱신 수행
  * - score 계산, member 포맷 변환 등의 변환 로직 담당
  */
 @Component
@@ -25,14 +27,17 @@ public class RedisOrderRepository implements OrderRepository {
 
     private final OrderZsetClient zsetClient;
     private final OrderHashClient hashClient;
+    private final OrderLuaClient luaClient;
     private final long priceScale;
 
     public RedisOrderRepository(
             OrderZsetClient zsetClient,
             OrderHashClient hashClient,
+            OrderLuaClient luaClient,
             RedisOrderQueueProperties orderQueueProperties) {
         this.zsetClient = zsetClient;
         this.hashClient = hashClient;
+        this.luaClient = luaClient;
         this.priceScale = orderQueueProperties.priceScale();
     }
 
@@ -40,10 +45,11 @@ public class RedisOrderRepository implements OrderRepository {
     public Mono<Void> addOrder(Order order) {
         double score = toScore(order);
         String member = toMember(order);
-        String side = sideKey(order.side());
+        String zsetKey = zsetClient.zsetKey(sideKey(order.side()), order.symbol());
+        String hashKey = hashClient.hashKey(order.id());
+        Map<String, String> fields = hashClient.toMap(order);
 
-        return zsetClient.add(side, order.symbol(), score, member)
-                .then(hashClient.save(order));
+        return luaClient.addOrder(zsetKey, hashKey, score, member, fields);
     }
 
     /**
@@ -61,20 +67,20 @@ public class RedisOrderRepository implements OrderRepository {
     }
 
     /**
-     * 주문을 제거한다. Hash 삭제를 CAS로 활용하여 취소 경합을 감지한다.
-     * - Hash 삭제 성공 → ZSET 삭제 → true
-     * - Hash 삭제 실패(이미 취소됨) → false
+     * 주문을 제거한다. Lua 스크립트로 DEL(CAS) + ZREM을 원자적으로 수행한다.
+     * - Hash 조회로 주문 정보(side, symbol, createdAt) 획득
+     * - Lua: Hash 삭제 성공 → ZSET 삭제 → true
+     * - Lua: Hash 삭제 실패(이미 취소됨) → false
      */
     @Override
     public Mono<Boolean> remove(Long orderId) {
         return hashClient.findById(orderId)
-                .flatMap(order -> hashClient.delete(orderId)
-                        .filter(deleted -> deleted)
-                        .flatMap(deleted -> {
-                            String member = toMember(order);
-                            return zsetClient.remove(sideKey(order.side()), order.symbol(), member);
-                        })
-                        .hasElement())
+                .flatMap(order -> {
+                    String member = toMember(order);
+                    String hashKey = hashClient.hashKey(orderId);
+                    String zsetKey = zsetClient.zsetKey(sideKey(order.side()), order.symbol());
+                    return luaClient.remove(hashKey, zsetKey, member);
+                })
                 .defaultIfEmpty(false);
     }
 
