@@ -7,6 +7,7 @@ import com.stocat.match.domain.order.OrderRepository;
 import com.stocat.match.exception.ApiException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.Map;
@@ -18,20 +19,18 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final StockSessionManager stockSessionManager;
 
-    public void addOrder(Order order) {
+    public Mono<Void> addOrder(Order order) {
         if (!stockSessionManager.isSymbolRegistered(order.symbol())) {
-            throw new ApiException(MatchErrorCode.SYMBOL_NOT_REGISTERED,
-                    Map.of("symbol", order.symbol()));
+            return Mono.error(new ApiException(MatchErrorCode.SYMBOL_NOT_REGISTERED,
+                    Map.of("symbol", order.symbol())));
         }
 
-        orderRepository.addOrder(order)
-                .block();
+        return orderRepository.addOrder(order);
     }
 
-    public BigDecimal cancelOrder(Long orderId) {
+    public Mono<BigDecimal> cancelOrder(Long orderId) {
         return orderRepository.remove(orderId)
-                .blockOptional()
-                .orElseThrow(() -> new ApiException(MatchErrorCode.ORDER_CANCEL_FAILED,
-                        Map.of("orderId", orderId)));
+                .switchIfEmpty(Mono.error(new ApiException(MatchErrorCode.ORDER_CANCEL_FAILED,
+                        Map.of("orderId", orderId))));
     }
 }
