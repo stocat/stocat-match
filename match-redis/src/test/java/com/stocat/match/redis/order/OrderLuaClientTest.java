@@ -62,7 +62,7 @@ class OrderLuaClientTest {
             fields.put("createdAt", "2025-01-01T09:00:00");
 
             // when
-            StepVerifier.create(luaClient.addOrder(ZSET_KEY, HASH_KEY, SCORE, MEMBER, fields))
+            StepVerifier.create(luaClient.enqueue(ZSET_KEY, HASH_KEY, SCORE, MEMBER, fields))
                     .verifyComplete();
 
             // then — ZSET에 member가 존재하는지 확인
@@ -92,7 +92,7 @@ class OrderLuaClientTest {
         void Hash와_ZSET이_원자적으로_삭제되고_취소_수량을_반환한다() {
             // given — 먼저 주문 추가
             Map<String, String> fields = Map.of("id", "1", "symbol", "NVDA", "side", "BUY", "quantity", "10");
-            luaClient.addOrder(ZSET_KEY, HASH_KEY, SCORE, MEMBER, fields).block();
+            luaClient.enqueue(ZSET_KEY, HASH_KEY, SCORE, MEMBER, fields).block();
 
             // when & then
             StepVerifier.create(luaClient.remove(HASH_KEY, ZSET_KEY, MEMBER))
@@ -123,7 +123,7 @@ class OrderLuaClientTest {
         void 동시_삭제_시_하나만_성공한다() {
             // given
             Map<String, String> fields = Map.of("id", "1", "symbol", "NVDA", "side", "BUY", "quantity", "10");
-            luaClient.addOrder(ZSET_KEY, HASH_KEY, SCORE, MEMBER, fields).block();
+            luaClient.enqueue(ZSET_KEY, HASH_KEY, SCORE, MEMBER, fields).block();
 
             // when — 두 번 연속 삭제 시도
             BigDecimal first = luaClient.remove(HASH_KEY, ZSET_KEY, MEMBER).block();

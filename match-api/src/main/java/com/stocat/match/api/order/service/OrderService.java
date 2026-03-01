@@ -19,13 +19,13 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final StockSessionManager stockSessionManager;
 
-    public Mono<Void> addOrder(Order order) {
+    public Mono<Void> enqueue(Order order) {
         if (!stockSessionManager.isSymbolRegistered(order.symbol())) {
             return Mono.error(new ApiException(MatchErrorCode.SYMBOL_NOT_REGISTERED,
                     Map.of("symbol", order.symbol())));
         }
 
-        return orderRepository.addOrder(order);
+        return orderRepository.enqueue(order);
     }
 
     public Mono<BigDecimal> cancelOrder(Long orderId) {

@@ -42,14 +42,14 @@ public class RedisOrderRepository implements OrderRepository {
     }
 
     @Override
-    public Mono<Void> addOrder(Order order) {
+    public Mono<Void> enqueue(Order order) {
         double score = toScore(order);
         String member = toMember(order);
         String zsetKey = zsetClient.zsetKey(sideKey(order.side()), order.symbol());
         String hashKey = hashClient.hashKey(order.id());
         Map<String, String> fields = hashClient.toMap(order);
 
-        return luaClient.addOrder(zsetKey, hashKey, score, member, fields);
+        return luaClient.enqueue(zsetKey, hashKey, score, member, fields);
     }
 
     /**

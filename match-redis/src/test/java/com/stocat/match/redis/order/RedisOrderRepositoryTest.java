@@ -76,15 +76,15 @@ class RedisOrderRepositoryTest {
             given(zsetClient.zsetKey("buy", TEST_SYMBOL)).willReturn("order:buy:NVDA");
             given(hashClient.hashKey(1L)).willReturn("order:detail:1");
             given(hashClient.toMap(order)).willReturn(Map.of("id", "1", "symbol", TEST_SYMBOL));
-            given(luaClient.addOrder(eq("order:buy:NVDA"), eq("order:detail:1"),
+            given(luaClient.enqueue(eq("order:buy:NVDA"), eq("order:detail:1"),
                     anyDouble(), anyString(), anyMap()))
                     .willReturn(Mono.empty());
 
             // when & then
-            StepVerifier.create(repository.addOrder(order))
+            StepVerifier.create(repository.enqueue(order))
                     .verifyComplete();
 
-            then(luaClient).should().addOrder(eq("order:buy:NVDA"), eq("order:detail:1"),
+            then(luaClient).should().enqueue(eq("order:buy:NVDA"), eq("order:detail:1"),
                     anyDouble(), anyString(), anyMap());
         }
     }

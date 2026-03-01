@@ -13,7 +13,7 @@ import java.util.Map;
 
 /**
  * Lua 스크립트 기반 원자적 주문 추가/삭제
- * - addOrder: ZADD + HSET 원자적 수행
+ * - enqueue: ZADD + HSET 원자적 수행
  * - remove: DEL(CAS) + ZREM 원자적 수행
  */
 @Component
@@ -38,7 +38,7 @@ public class OrderLuaClient {
      * @param member  ZSET member
      * @param fields  HASH 필드-값 맵
      */
-    public Mono<Void> addOrder(String zsetKey, String hashKey,
+    public Mono<Void> enqueue(String zsetKey, String hashKey,
                                double score, String member,
                                Map<String, String> fields) {
         List<String> keys = List.of(zsetKey, hashKey);

@@ -21,11 +21,11 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping
-    @Operation(summary = "주문 생성")
-    @ApiResponse(responseCode = "200", description = "주문 생성 성공")
+    @Operation(summary = "체결 대기 큐에 주문 등록")
+    @ApiResponse(responseCode = "200", description = "주문 등록 성공")
     @ApiResponse(responseCode = "400", description = "유효성 검증 실패, 등록되지 않은 종목 등")
-    public Mono<Void> createOrder(@Valid @RequestBody OrderRequest request) {
-        return orderService.addOrder(request.toOrder());
+    public Mono<Void> enqueueOrder(@Valid @RequestBody OrderEnqueueRequest request) {
+        return orderService.enqueue(request.toOrder());
     }
 
     @DeleteMapping("/{orderId}")

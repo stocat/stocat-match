@@ -11,7 +11,7 @@ import java.math.BigDecimal;
  * - 매수/매도 주문 데이터 관리
  */
 public interface OrderRepository {
-    Mono<Void> addOrder(Order order);
+    Mono<Void> enqueue(Order order);
     Flux<Order> fetchMatchableOrders(String symbol, TradeSide side, BigDecimal matchPrice);
     Mono<BigDecimal> remove(Long orderId);
     Mono<Void> updateQuantity(Order order, BigDecimal newQuantity);

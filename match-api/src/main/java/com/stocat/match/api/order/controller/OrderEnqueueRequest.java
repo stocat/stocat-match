@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Positive;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-public record OrderRequest(
+public record OrderEnqueueRequest(
         @NotNull Long id,
         @NotBlank String symbol,
         @NotNull TradeSide side,
