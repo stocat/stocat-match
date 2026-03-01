@@ -1,7 +1,6 @@
 package com.stocat.match.api.engine;
 
 import com.stocat.match.domain.fill.Fill;
-import com.stocat.match.domain.fill.FillResult;
 import com.stocat.match.domain.order.Order;
 import com.stocat.match.domain.order.OrderType;
 import com.stocat.match.domain.TradeSide;
@@ -21,28 +20,26 @@ public class MatchingEngine {
 
     /**
      * 주문 체결 시도 (매수/매도 통합)
-     * - 여러 호가 레벨에 걸쳐 체결 가능
-     * - 각 가격 레벨마다 별도의 Fill 생성
-     * - 부분 체결 시 남은 수량으로 주문 재생성
      *
-     * @param order 체결할 주문
-     * @param orderbook 현재 호가 정보
-     * @return 체결 결과 (체결 내역, 총 체결 수량, 미체결 주문)
+     * @return FILLED: 체결 성공, SKIP: 시간 제약, STOP: 가격 불일치
      */
-    public FillResult match(Order order, Orderbook orderbook) {
+    public MatchResult match(Order order, Orderbook orderbook) {
+        if (order.createdAt().isAfter(orderbook.timestamp())) {
+            return MatchResult.skip(order.quantity());
+        }
+
         List<PriceLevel> priceLevels = order.side() == TradeSide.BUY ? orderbook.asks() : orderbook.bids();
 
         return matchOrder(order, priceLevels);
     }
 
-    private FillResult matchOrder(Order order, List<PriceLevel> priceLevels) {
+    private MatchResult matchOrder(Order order, List<PriceLevel> priceLevels) {
         if (priceLevels == null || priceLevels.isEmpty()) {
-            return new FillResult(List.of(), BigDecimal.ZERO, order);
+            return MatchResult.stop(order.quantity());
         }
 
         List<Fill> fills = new ArrayList<>();
         BigDecimal remainingQuantity = order.quantity();
-        BigDecimal totalFilledQuantity = BigDecimal.ZERO;
 
         for (PriceLevel level : priceLevels) {
             if (remainingQuantity.compareTo(BigDecimal.ZERO) <= 0) {
@@ -54,24 +51,18 @@ public class MatchingEngine {
             }
 
             BigDecimal fillQuantity = remainingQuantity.min(level.quantity());
-            Fill fill = createFill(order, level.price(), fillQuantity);
-            fills.add(fill);
+            fills.add(createFill(order, level.price(), fillQuantity));
 
             remainingQuantity = remainingQuantity.subtract(fillQuantity);
-            totalFilledQuantity = totalFilledQuantity.add(fillQuantity);
         }
 
-        Order remainingOrder = null;
-        if (remainingQuantity.compareTo(BigDecimal.ZERO) > 0) {
-            remainingOrder = order.withQuantity(remainingQuantity);
+        if (fills.isEmpty()) {
+            return MatchResult.stop(order.quantity());
         }
 
-        return new FillResult(fills, totalFilledQuantity, remainingOrder);
+        return MatchResult.filled(fills, remainingQuantity);
     }
 
-    /**
-     * 주문이 특정 호가에서 체결 가능한지 확인
-     */
     private boolean canFillAtPrice(Order order, PriceLevel level) {
         if (order.type() == OrderType.MARKET) {
             return true;

@@ -25,6 +25,7 @@ import reactor.test.StepVerifier;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -72,7 +73,8 @@ class OrderbookStreamClientTest {
                 List.of(
                         new PriceLevel(BigDecimal.valueOf(50000), BigDecimal.valueOf(150)),
                         new PriceLevel(BigDecimal.valueOf(49900), BigDecimal.valueOf(250))
-                )
+                ),
+                LocalDateTime.of(2025, 1, 1, 9, 0, 0)
         );
     }
 

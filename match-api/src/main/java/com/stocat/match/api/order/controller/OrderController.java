@@ -1,0 +1,39 @@
+package com.stocat.match.api.order.controller;
+
+import com.stocat.match.api.order.service.OrderService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Mono;
+
+@RestController
+@RequestMapping("/internal/orders")
+@RequiredArgsConstructor
+public class OrderController {
+
+    private final OrderService orderService;
+
+    @PostMapping
+    @Operation(summary = "체결 대기 큐에 주문 등록")
+    @ApiResponse(responseCode = "200", description = "주문 등록 성공")
+    @ApiResponse(responseCode = "400", description = "유효성 검증 실패, 등록되지 않은 종목 등")
+    public Mono<Void> enqueueOrder(@Valid @RequestBody OrderEnqueueRequest request) {
+        return orderService.enqueue(request.toOrder());
+    }
+
+    @DeleteMapping("/{orderId}")
+    @Operation(summary = "주문 취소")
+    @ApiResponse(responseCode = "200", description = "주문 취소 성공")
+    @ApiResponse(responseCode = "400", description = "주문 취소 실패 (이미 체결/취소된 주문)")
+    public Mono<OrderCancelResponse> cancelOrder(@PathVariable Long orderId) {
+        return orderService.cancelOrder(orderId)
+                .map(OrderCancelResponse::new);
+    }
+}

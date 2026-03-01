@@ -1,6 +1,7 @@
 package com.stocat.match.api.engine;
 
-import com.stocat.match.domain.order.Order;
+import com.stocat.match.api.exception.MatchErrorCode;
+import com.stocat.match.exception.ApiException;
 import com.stocat.match.domain.orderbook.Orderbook;
 import com.stocat.match.redis.stream.OrderbookStreamClient;
 import com.stocat.match.redis.stream.OrderbookStreamMessage;
@@ -82,20 +83,12 @@ public class StockSessionManager {
         session.close();
     }
 
-    // === 라우팅 ===
-
     /**
-     * 주문 라우팅
-     * - 해당 종목의 Worker에게 전달
+     * 종목 등록 여부 확인
      */
-    public void routeOrder(Order order) {
-        StockSession session = sessions.get(order.symbol());
-        if (session == null) {
-            throw new IllegalStateException("등록되지 않은 종목: " + order.symbol());
-        }
-        session.worker().addOrder(order);
+    public boolean isSymbolRegistered(String symbol) {
+        return sessions.containsKey(symbol);
     }
-
 
     /**
      * Redis Stream에서 호가 구독
@@ -105,7 +98,7 @@ public class StockSessionManager {
 
         return streamClient.createConsumerGroup(symbol)
                 .thenMany(streamClient.subscribe(symbol, consumerName))
-                .flatMap(message -> processMessage(message, symbol))
+                .concatMap(message -> processMessage(message, symbol))
                 .doOnSubscribe(s -> log.info("호가 구독 시작: symbol={}", symbol))
                 .doOnCancel(() -> log.info("호가 구독 취소: symbol={}", symbol))
                 .doOnError(e -> log.error("호가 구독 오류: symbol={}, error={}", symbol, e.getMessage()));
@@ -113,10 +106,11 @@ public class StockSessionManager {
 
     /**
      * 메시지 처리 및 ACK
+     * - Worker의 매칭 완료 후 ACK
      */
     private Mono<Orderbook> processMessage(OrderbookStreamMessage message, String symbol) {
-        routeOrderbook(message.orderbook());
-        return streamClient.acknowledge(symbol, message.recordId())
+        return routeOrderbook(message.orderbook())
+                .then(streamClient.acknowledge(symbol, message.recordId()))
                 .thenReturn(message.orderbook());
     }
 
@@ -124,12 +118,13 @@ public class StockSessionManager {
      * 호가 라우팅
      * - 해당 종목의 Worker에게 전달
      */
-    private void routeOrderbook(Orderbook orderbook) {
+    private Mono<Void> routeOrderbook(Orderbook orderbook) {
         StockSession session = sessions.get(orderbook.symbol());
         if (session == null) {
-            throw new IllegalStateException("등록되지 않은 종목: " + orderbook.symbol());
+            return Mono.error(new ApiException(MatchErrorCode.SYMBOL_NOT_REGISTERED,
+                    Map.of("symbol", orderbook.symbol())));
         }
-        session.worker().processOrderbook(orderbook);
+        return session.worker().processOrderbook(orderbook);
     }
 
     /**
